@@ -36261,6 +36261,18 @@ var { spawn } = require("child_process");
 var Aria2 = (init_Aria2(), __toCommonJS(Aria2_exports)).default || (init_Aria2(), __toCommonJS(Aria2_exports));
 var { ElectronBlocker } = require_commonjs();
 var fetch$1 = require_node_ponyfill();
+var Module = require("module");
+var originalRequire = Module.prototype.require;
+var sharedAxios = originalRequire.call(module, "axios");
+var sharedCheerio;
+try {
+	sharedCheerio = originalRequire.call(module, "cheerio");
+} catch (e) {}
+Module.prototype.require = function(request) {
+	if (request === "axios") return sharedAxios;
+	if (request === "cheerio" && sharedCheerio) return sharedCheerio;
+	return originalRequire.apply(this, arguments);
+};
 var mainWindow;
 var adBlocker = null;
 var extensions = {};
@@ -36289,7 +36301,7 @@ var dbPath = path.join(app.getPath("userData"), "blackpearl_db.json");
 function getDB() {
 	if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify({
 		profile: {
-			name: "Captain",
+			name: "User",
 			avatar: "",
 			downloadPath: app.getPath("downloads")
 		},
@@ -36329,7 +36341,7 @@ setInterval(async () => {
 		if (completed.length > 0) {
 			let db = getDB();
 			let updated = false;
-			completed.forEach((c) => {
+			for (const c of completed) {
 				const fileName = c.files[0]?.path?.split(/[/\\]/).pop() || "Unknown File";
 				if (!db.completedDownloads.find((x) => x.gid === c.gid)) {
 					db.completedDownloads.push({
@@ -36340,7 +36352,10 @@ setInterval(async () => {
 					});
 					updated = true;
 				}
-			});
+				try {
+					await aria2.call("removeDownloadResult", c.gid);
+				} catch (e) {}
+			}
 			if (updated) saveDB(db);
 		}
 		mainWindow.webContents.send("download-update", [...active, ...waiting].map((d) => ({
@@ -36466,7 +36481,19 @@ ipcMain.handle("clear-completed", () => {
 });
 ipcMain.handle("pause-download", async (e, gid) => await aria2.call("pause", gid));
 ipcMain.handle("resume-download", async (e, gid) => await aria2.call("unpause", gid));
-ipcMain.handle("cancel-download", async (e, gid) => await aria2.call("remove", gid));
+ipcMain.handle("cancel-download", async (e, gid) => {
+	try {
+		const status = await aria2.call("tellStatus", gid);
+		await aria2.call("forceRemove", gid);
+		if (status && status.files) status.files.forEach((f) => {
+			if (f.path && fs.existsSync(f.path)) fs.unlinkSync(f.path);
+			const ariaFile = f.path + ".aria2";
+			if (fs.existsSync(ariaFile)) fs.unlinkSync(ariaFile);
+		});
+	} catch (err) {
+		console.error("Cancel Error:", err);
+	}
+});
 ipcMain.on("start-smart-download", (event, hostUrl, gameName) => {
 	const dlSession = session.fromPartition("persist:stealth_downloads");
 	if (adBlocker) adBlocker.enableBlockingInSession(dlSession);

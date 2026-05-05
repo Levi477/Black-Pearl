@@ -7,6 +7,20 @@ const Aria2 = require("aria2").default || require("aria2");
 const { ElectronBlocker } = require("@cliqz/adblocker-electron");
 const fetch = require("cross-fetch");
 
+const Module = require("module");
+const originalRequire = Module.prototype.require;
+const sharedAxios = originalRequire.call(module, "axios");
+let sharedCheerio;
+try {
+  sharedCheerio = originalRequire.call(module, "cheerio");
+} catch (e) {}
+
+Module.prototype.require = function (request) {
+  if (request === "axios") return sharedAxios;
+  if (request === "cheerio" && sharedCheerio) return sharedCheerio;
+  return originalRequire.apply(this, arguments);
+};
+
 let mainWindow;
 let adBlocker = null;
 
@@ -51,7 +65,7 @@ function getDB() {
       dbPath,
       JSON.stringify({
         profile: {
-          name: "Captain",
+          name: "User",
           avatar: "",
           downloadPath: app.getPath("downloads"),
         },
@@ -73,7 +87,7 @@ const aria2 = new Aria2({
   secure: false,
   secret: "",
 });
-const activeGameMap = new Map(); // Maps Aria2 GID to Game Name
+const activeGameMap = new Map();
 
 function startAria2() {
   let binaryName =
@@ -109,7 +123,8 @@ setInterval(async () => {
       if (completed.length > 0) {
         let db = getDB();
         let updated = false;
-        completed.forEach((c) => {
+
+        for (const c of completed) {
           const fileName =
             c.files[0]?.path?.split(/[/\\]/).pop() || "Unknown File";
           if (!db.completedDownloads.find((x) => x.gid === c.gid)) {
@@ -121,7 +136,11 @@ setInterval(async () => {
             });
             updated = true;
           }
-        });
+          // FIX: Purge from Aria2 memory so it doesn't repopulate when user clears history
+          try {
+            await aria2.call("removeDownloadResult", c.gid);
+          } catch (e) {}
+        }
         if (updated) saveDB(db);
       }
 
@@ -132,8 +151,8 @@ setInterval(async () => {
           gameName:
             activeGameMap.get(d.gid) || d.files[0]?.path?.split(/[/\\]/).pop(),
           name: d.files[0]?.path?.split(/[/\\]/).pop() || "Resolving...",
-          total: Number(d.totalLength || 0), // Fix: Convert Aria2 String to Number
-          completed: Number(d.completedLength || 0), // Fix: Convert Aria2 String to Number
+          total: Number(d.totalLength || 0),
+          completed: Number(d.completedLength || 0),
           speed: Number(d.downloadSpeed || 0),
           status: d.status,
         })),
@@ -170,7 +189,6 @@ function createWindow() {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
-
 app.on("will-quit", () => {
   if (aria2Process) aria2Process.kill();
 });
@@ -271,6 +289,8 @@ ipcMain.handle("clear-completed", () => {
   saveDB(db);
   return db;
 });
+
+// --- DOWNLOAD CONTROLS & DELETION FIX ---
 ipcMain.handle(
   "pause-download",
   async (e, gid) => await aria2.call("pause", gid),
@@ -279,10 +299,23 @@ ipcMain.handle(
   "resume-download",
   async (e, gid) => await aria2.call("unpause", gid),
 );
-ipcMain.handle(
-  "cancel-download",
-  async (e, gid) => await aria2.call("remove", gid),
-);
+ipcMain.handle("cancel-download", async (e, gid) => {
+  try {
+    const status = await aria2.call("tellStatus", gid); // Grab file info BEFORE canceling
+    await aria2.call("forceRemove", gid);
+
+    // FIX: Delete the residual files from the hard drive
+    if (status && status.files) {
+      status.files.forEach((f) => {
+        if (f.path && fs.existsSync(f.path)) fs.unlinkSync(f.path);
+        const ariaFile = f.path + ".aria2";
+        if (fs.existsSync(ariaFile)) fs.unlinkSync(ariaFile);
+      });
+    }
+  } catch (err) {
+    console.error("Cancel Error:", err);
+  }
+});
 
 // --- SMART INTERCEPTOR ---
 ipcMain.on("start-smart-download", (event, hostUrl, gameName) => {
@@ -296,7 +329,6 @@ ipcMain.on("start-smart-download", (event, hostUrl, gameName) => {
     title: "Black Pearl - Please click 'Download' when ready...",
     webPreferences: { nodeIntegration: false, session: dlSession },
   });
-
   downloadWin.webContents.setWindowOpenHandler(({ url }) => {
     downloadWin.loadURL(url);
     return { action: "deny" };
@@ -328,17 +360,13 @@ ipcMain.on("start-smart-download", (event, hostUrl, gameName) => {
         dir: db.profile.downloadPath || app.getPath("downloads"),
         out: `[BlackPearl] ${fileName}`,
       });
-
-      activeGameMap.set(gid, gameName); // Map GID so UI knows which game it is!
-
-      // FIRE SUCCESS EVENT TO FRONTEND IMMEDIATELY
+      activeGameMap.set(gid, gameName);
       mainWindow.webContents.send("download-started", { gameName, fileName });
     } catch (err) {
       console.error(err);
     } finally {
       if (!downloadWin.isDestroyed()) downloadWin.close();
-    } // CLOSE WINDOW INSTANTLY
+    }
   });
-
   downloadWin.loadURL(hostUrl);
 });
