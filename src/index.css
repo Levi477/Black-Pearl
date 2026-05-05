@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+:root {
+    color-scheme: dark;
+}
+
+html,
+body,
+#root {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #030303;
+    color: white;
+    overflow: hidden;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.theme-aurora {
+    background: linear-gradient(-45deg, #0a031a, #18053a, #0b112c, #000000);
+    background-size: 400% 400%;
+    animation: bg-shift 18s ease-in-out infinite;
+}
+.theme-crimson {
+    background: linear-gradient(-45deg, #1c0202, #3a0505, #140101, #000000);
+    background-size: 400% 400%;
+    animation: bg-shift 18s ease-in-out infinite;
+}
+.theme-emerald {
+    background: linear-gradient(-45deg, #011c0f, #033a1e, #01140b, #000000);
+    background-size: 400% 400%;
+    animation: bg-shift 18s ease-in-out infinite;
+}
+.theme-cyber {
+    background: linear-gradient(-45deg, #030014, #130033, #000c24, #000000);
+    background-size: 400% 400%;
+    animation: bg-shift 18s ease-in-out infinite;
+}
+.theme-cyberpunk {
+    background: linear-gradient(-45deg, #1a1600, #332b00, #141100, #000000);
+    background-size: 400% 400%;
+    animation: bg-shift 18s ease-in-out infinite;
+}
+
+@keyframes bg-shift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* --- FROSTED GLASS EFFECT --- */
+.glass-panel {
+    @apply bg-white/[0.04] backdrop-blur-[40px] border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.6)];
+}
+
+.glass-inner {
+    @apply bg-black/40 backdrop-blur-2xl border border-white/5;
+}
+
+.skeleton {
+    background-color: rgba(255, 255, 255, 0.05);
+    background-image: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.1) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: youtube-shimmer 2s infinite linear;
+}
+
+@keyframes youtube-shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
