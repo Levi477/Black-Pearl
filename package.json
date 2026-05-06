@@ -2,7 +2,7 @@
   "name": "black-pearl",
   "private": true,
   "version": "0.0.0",
-  "main": "electron/main.js",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build && electron-builder",
@@ -47,14 +47,10 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "package.json"
     ],
     "extraResources": [
-      {
-        "from": "extensions",
-        "to": "extensions",
-        "filter": ["**/*"]
-      },
       "aria2c.exe",
       "aria2c",
       "aria2c-linux"
@@ -63,7 +59,10 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ]
     },
