@@ -69,13 +69,13 @@
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
+      "allowToChangeInstallationDirectory": true
     },
     "publish": [
       {
         "provider": "github",
         "owner": "Levi477",
-        "repo": "Black-Pearl"
+        "repo": "YOUR_REPO_NAME_HERE"
       }
     ]
   }
