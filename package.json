@@ -70,14 +70,12 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
     },
     "publish": [
       {
         "provider": "github",
         "owner": "Levi477",
-        "repo": "YOUR_REPO_NAME_HERE"
+        "repo": "Black-Pearl"
       }
     ]
   }
