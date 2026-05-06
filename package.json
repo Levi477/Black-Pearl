@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "main": "dist-electron/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Levi477/Black-Pearl.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build && electron-builder",
@@ -75,7 +79,7 @@
       {
         "provider": "github",
         "owner": "Levi477",
-        "repo": "YOUR_REPO_NAME_HERE"
+        "repo": "Black-Pearl"
       }
     ]
   }

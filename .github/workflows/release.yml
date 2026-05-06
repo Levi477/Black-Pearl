@@ -3,7 +3,7 @@ name: Build and Release Black Pearl
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build-windows:
@@ -20,7 +20,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install Dependencies
         run: npm install
@@ -31,4 +31,5 @@ jobs:
       - name: Package & Publish Electron App
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --win --x64 --arm64 --publish always
