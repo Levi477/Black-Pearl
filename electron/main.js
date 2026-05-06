@@ -1,19 +1,18 @@
-import { app, BrowserWindow, ipcMain, session, dialog } from "electron";
-import path from "path";
-import fs from "fs";
-import axios from "axios";
-import { spawn } from "child_process";
-import Aria2 from "aria2.default";
-import { ElectronBlocker } from "@ghostery/adblocker-electron";
-import fetch from "cross-fetch";
-import Module from "module";
-import process from "process";
+const { app, BrowserWindow, ipcMain, session, dialog } = require("electron");
+const path = require("path");
+const fs = require("fs");
+const axios = require("axios");
+const { spawn } = require("child_process");
+const Aria2 = require("aria2").default || require("aria2");
+const { ElectronBlocker } = require("@cliqz/adblocker-electron");
+const fetch = require("cross-fetch");
 
+const Module = require("module");
 const originalRequire = Module.prototype.require;
-const sharedAxios = originalRequire.call(Module.module, "axios");
+const sharedAxios = originalRequire.call(module, "axios");
 let sharedCheerio;
 try {
-  sharedCheerio = originalRequire.call(Module.module, "cheerio");
+  sharedCheerio = originalRequire.call(module, "cheerio");
 } catch (e) {}
 
 Module.prototype.require = function (request) {
@@ -97,100 +96,247 @@ function saveDB(data) {
 
 // --- ARIA2 ENGINE ---
 let aria2Process;
+
 const aria2 = new Aria2({
-  host: "localhost",
+  host: "127.0.0.1",
   port: 6800,
   secure: false,
   secret: "",
 });
+
 const activeGameMap = new Map();
 
 function startAria2() {
-  let binaryName =
+  const binaryName =
     process.platform === "darwin"
       ? "aria2c"
       : process.platform === "linux"
         ? "aria2c-linux"
         : "aria2c.exe";
+
   const ariaPath = app.isPackaged
     ? path.join(process.resourcesPath, binaryName)
     : path.join(__dirname, "..", binaryName);
-  if (fs.existsSync(ariaPath)) {
-    aria2Process = spawn(ariaPath, [
-      "--enable-rpc",
-      "--rpc-listen-all=false",
-      "--rpc-listen-port=6800",
-      "--max-connection-per-server=32",
-      "--split=32",
-      "--continue=true",
-    ]);
+
+  console.log("=================================");
+  console.log("STARTING ARIA2");
+  console.log("=================================");
+  console.log("Platform:", process.platform);
+  console.log("Architecture:", process.arch);
+  console.log("App Packaged:", app.isPackaged);
+  console.log("__dirname:", __dirname);
+  console.log("Resources Path:", process.resourcesPath);
+  console.log("Binary Name:", binaryName);
+  console.log("Final Aria2 Path:", ariaPath);
+
+  const exists = fs.existsSync(ariaPath);
+
+  console.log("Binary Exists:", exists);
+
+  if (!exists) {
+    console.error("ARIA2 BINARY NOT FOUND");
+    return false;
+  }
+
+  try {
+    const stat = fs.statSync(ariaPath);
+
+    console.log("Binary Size:", stat.size);
+
+    try {
+      fs.accessSync(ariaPath, fs.constants.X_OK);
+      console.log("Binary is executable");
+    } catch {
+      console.error("Binary is NOT executable");
+    }
+
+    aria2Process = spawn(
+      ariaPath,
+      [
+        "--enable-rpc",
+        "--rpc-listen-all=false",
+        "--rpc-listen-port=6800",
+        "--max-connection-per-server=16",
+        "--split=32",
+        "--continue=true",
+      ],
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+
+    console.log("Spawned Aria2 PID:", aria2Process.pid);
+
+    aria2Process.stdout.on("data", (data) => {
+      console.log("[ARIA2 STDOUT]", data.toString());
+    });
+
+    aria2Process.stderr.on("data", (data) => {
+      console.error("[ARIA2 STDERR]", data.toString());
+    });
+
+    aria2Process.on("spawn", () => {
+      console.log("ARIA2 PROCESS SPAWNED");
+    });
+
+    aria2Process.on("error", (err) => {
+      console.error("ARIA2 PROCESS ERROR:", err);
+    });
+
+    aria2Process.on("exit", (code, signal) => {
+      console.error("ARIA2 EXITED:", "code=", code, "signal=", signal);
+    });
+
+    aria2Process.on("close", (code, signal) => {
+      console.error("ARIA2 CLOSED:", "code=", code, "signal=", signal);
+    });
+
+    return true;
+  } catch (err) {
+    console.error("FAILED TO START ARIA2:", err);
+
+    return false;
   }
 }
 
-// Poll Aria2 State
-setInterval(async () => {
-  if (mainWindow && aria2Process) {
+async function connectAria2(maxRetries = 15) {
+  console.log("=================================");
+  console.log("CONNECTING TO ARIA2 RPC");
+  console.log("=================================");
+
+  for (let i = 1; i <= maxRetries; i++) {
     try {
-      const active = await aria2.call("tellActive");
-      const waiting = await aria2.call("tellWaiting", 0, 100);
-      const stopped = await aria2.call("tellStopped", 0, 100);
+      console.log(`Attempt ${i}/${maxRetries}`);
 
-      const completed = stopped.filter((d) => d.status === "complete");
-      if (completed.length > 0) {
-        let db = getDB();
-        let updated = false;
+      await aria2.open();
 
-        for (const c of completed) {
-          const fileName =
-            c.files[0]?.path?.split(/[/\\]/).pop() || "Unknown File";
-          if (!db.completedDownloads.find((x) => x.gid === c.gid)) {
-            db.completedDownloads.push({
-              gid: c.gid,
-              name: fileName,
-              gameName: activeGameMap.get(c.gid) || fileName,
-              date: new Date().toISOString(),
-            });
-            updated = true;
-          }
-          // Purge from Aria2 memory so it doesn't repopulate when user clears history
-          try {
-            await aria2.call("removeDownloadResult", c.gid);
-          } catch (e) {}
+      console.log("CONNECTED TO ARIA2 SUCCESSFULLY");
+
+      return true;
+    } catch (err) {
+      console.error("ARIA2 CONNECTION FAILED:");
+
+      console.error(err);
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  console.error("FAILED TO CONNECT TO ARIA2 AFTER ALL RETRIES");
+
+  return false;
+}
+
+// ---------------- POLLING ----------------
+
+setInterval(async () => {
+  if (!mainWindow) return;
+
+  if (!aria2Process) {
+    console.log("Polling skipped: aria2Process missing");
+    return;
+  }
+
+  try {
+    const active = await aria2.call("tellActive");
+
+    const waiting = await aria2.call("tellWaiting", 0, 100);
+
+    const stopped = await aria2.call("tellStopped", 0, 100);
+
+    const completed = stopped.filter((d) => d.status === "complete");
+
+    if (completed.length > 0) {
+      let db = getDB();
+
+      let updated = false;
+
+      for (const c of completed) {
+        const fileName =
+          c.files[0]?.path?.split(/[/\\]/).pop() || "Unknown File";
+
+        if (!db.completedDownloads.find((x) => x.gid === c.gid)) {
+          db.completedDownloads.push({
+            gid: c.gid,
+            name: fileName,
+            gameName: activeGameMap.get(c.gid) || fileName,
+            date: new Date().toISOString(),
+          });
+
+          updated = true;
         }
-        if (updated) saveDB(db);
+
+        try {
+          await aria2.call("removeDownloadResult", c.gid);
+        } catch (e) {
+          console.error("removeDownloadResult failed:", e);
+        }
       }
 
-      mainWindow.webContents.send(
-        "download-update",
-        [...active, ...waiting].map((d) => ({
-          gid: d.gid,
-          gameName:
-            activeGameMap.get(d.gid) || d.files[0]?.path?.split(/[/\\]/).pop(),
-          name: d.files[0]?.path?.split(/[/\\]/).pop() || "Resolving...",
-          total: Number(d.totalLength || 0),
-          completed: Number(d.completedLength || 0),
-          speed: Number(d.downloadSpeed || 0),
-          status: d.status,
-        })),
-      );
-    } catch (e) {}
+      if (updated) {
+        saveDB(db);
+      }
+    }
+
+    mainWindow.webContents.send(
+      "download-update",
+      [...active, ...waiting].map((d) => ({
+        gid: d.gid,
+
+        gameName:
+          activeGameMap.get(d.gid) || d.files[0]?.path?.split(/[/\\]/).pop(),
+
+        name: d.files[0]?.path?.split(/[/\\]/).pop() || "Resolving...",
+
+        total: Number(d.totalLength || 0),
+
+        completed: Number(d.completedLength || 0),
+
+        speed: Number(d.downloadSpeed || 0),
+
+        status: d.status,
+      })),
+    );
+  } catch (e) {
+    console.error("POLLING ERROR:", e);
   }
 }, 1000);
 
+// ---------------- APP READY ----------------
+
 app.whenReady().then(async () => {
-  loadExtensions();
-  startAria2();
-  setTimeout(async () => {
-    try {
-      await aria2.open();
-    } catch (e) {}
-  }, 1000);
+  console.log("=================================");
+  console.log("APP READY");
+  console.log("=================================");
+
+  try {
+    await loadExtensions();
+
+    console.log("Extensions loaded successfully");
+  } catch (e) {
+    console.error("Extension loading failed:", e);
+  }
+
+  const started = startAria2();
+
+  console.log("Aria2 Started:", started);
+
+  if (started) {
+    const connected = await connectAria2();
+
+    console.log("Aria2 Connected:", connected);
+  }
+
   try {
     adBlocker = await ElectronBlocker.fromPrebuiltAdsAndTracking(fetch);
-  } catch (e) {}
+
+    console.log("AdBlocker initialized");
+  } catch (e) {
+    console.error("AdBlocker failed:", e);
+  }
+
   createWindow();
 });
-
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,

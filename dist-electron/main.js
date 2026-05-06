@@ -36328,26 +36328,101 @@ function saveDB(data) {
 }
 var aria2Process;
 var aria2 = new Aria2({
-	host: "localhost",
+	host: "127.0.0.1",
 	port: 6800,
 	secure: false,
 	secret: ""
 });
 var activeGameMap = /* @__PURE__ */ new Map();
 function startAria2() {
-	let binaryName = process.platform === "darwin" ? "aria2c" : process.platform === "linux" ? "aria2c-linux" : "aria2c.exe";
+	const binaryName = process.platform === "darwin" ? "aria2c" : process.platform === "linux" ? "aria2c-linux" : "aria2c.exe";
 	const ariaPath = app.isPackaged ? path.join(process.resourcesPath, binaryName) : path.join(__dirname, "..", binaryName);
-	if (fs.existsSync(ariaPath)) aria2Process = spawn(ariaPath, [
-		"--enable-rpc",
-		"--rpc-listen-all=false",
-		"--rpc-listen-port=6800",
-		"--max-connection-per-server=16",
-		"--split=16",
-		"--continue=true"
-	]);
+	console.log("=================================");
+	console.log("STARTING ARIA2");
+	console.log("=================================");
+	console.log("Platform:", process.platform);
+	console.log("Architecture:", process.arch);
+	console.log("App Packaged:", app.isPackaged);
+	console.log("__dirname:", __dirname);
+	console.log("Resources Path:", process.resourcesPath);
+	console.log("Binary Name:", binaryName);
+	console.log("Final Aria2 Path:", ariaPath);
+	const exists = fs.existsSync(ariaPath);
+	console.log("Binary Exists:", exists);
+	if (!exists) {
+		console.error("ARIA2 BINARY NOT FOUND");
+		return false;
+	}
+	try {
+		const stat = fs.statSync(ariaPath);
+		console.log("Binary Size:", stat.size);
+		try {
+			fs.accessSync(ariaPath, fs.constants.X_OK);
+			console.log("Binary is executable");
+		} catch {
+			console.error("Binary is NOT executable");
+		}
+		aria2Process = spawn(ariaPath, [
+			"--enable-rpc",
+			"--rpc-listen-all=false",
+			"--rpc-listen-port=6800",
+			"--max-connection-per-server=16",
+			"--split=32",
+			"--continue=true"
+		], { stdio: [
+			"ignore",
+			"pipe",
+			"pipe"
+		] });
+		console.log("Spawned Aria2 PID:", aria2Process.pid);
+		aria2Process.stdout.on("data", (data) => {
+			console.log("[ARIA2 STDOUT]", data.toString());
+		});
+		aria2Process.stderr.on("data", (data) => {
+			console.error("[ARIA2 STDERR]", data.toString());
+		});
+		aria2Process.on("spawn", () => {
+			console.log("ARIA2 PROCESS SPAWNED");
+		});
+		aria2Process.on("error", (err) => {
+			console.error("ARIA2 PROCESS ERROR:", err);
+		});
+		aria2Process.on("exit", (code, signal) => {
+			console.error("ARIA2 EXITED:", "code=", code, "signal=", signal);
+		});
+		aria2Process.on("close", (code, signal) => {
+			console.error("ARIA2 CLOSED:", "code=", code, "signal=", signal);
+		});
+		return true;
+	} catch (err) {
+		console.error("FAILED TO START ARIA2:", err);
+		return false;
+	}
+}
+async function connectAria2(maxRetries = 15) {
+	console.log("=================================");
+	console.log("CONNECTING TO ARIA2 RPC");
+	console.log("=================================");
+	for (let i = 1; i <= maxRetries; i++) try {
+		console.log(`Attempt ${i}/${maxRetries}`);
+		await aria2.open();
+		console.log("CONNECTED TO ARIA2 SUCCESSFULLY");
+		return true;
+	} catch (err) {
+		console.error("ARIA2 CONNECTION FAILED:");
+		console.error(err);
+		await new Promise((resolve) => setTimeout(resolve, 1e3));
+	}
+	console.error("FAILED TO CONNECT TO ARIA2 AFTER ALL RETRIES");
+	return false;
 }
 setInterval(async () => {
-	if (mainWindow && aria2Process) try {
+	if (!mainWindow) return;
+	if (!aria2Process) {
+		console.log("Polling skipped: aria2Process missing");
+		return;
+	}
+	try {
 		const active = await aria2.call("tellActive");
 		const waiting = await aria2.call("tellWaiting", 0, 100);
 		const completed = (await aria2.call("tellStopped", 0, 100)).filter((d) => d.status === "complete");
@@ -36367,7 +36442,9 @@ setInterval(async () => {
 				}
 				try {
 					await aria2.call("removeDownloadResult", c.gid);
-				} catch (e) {}
+				} catch (e) {
+					console.error("removeDownloadResult failed:", e);
+				}
 			}
 			if (updated) saveDB(db);
 		}
@@ -36380,19 +36457,32 @@ setInterval(async () => {
 			speed: Number(d.downloadSpeed || 0),
 			status: d.status
 		})));
-	} catch (e) {}
+	} catch (e) {
+		console.error("POLLING ERROR:", e);
+	}
 }, 1e3);
 app.whenReady().then(async () => {
-	loadExtensions();
-	startAria2();
-	setTimeout(async () => {
-		try {
-			await aria2.open();
-		} catch (e) {}
-	}, 1e3);
+	console.log("=================================");
+	console.log("APP READY");
+	console.log("=================================");
+	try {
+		await loadExtensions();
+		console.log("Extensions loaded successfully");
+	} catch (e) {
+		console.error("Extension loading failed:", e);
+	}
+	const started = startAria2();
+	console.log("Aria2 Started:", started);
+	if (started) {
+		const connected = await connectAria2();
+		console.log("Aria2 Connected:", connected);
+	}
 	try {
 		adBlocker = await ElectronBlocker.fromPrebuiltAdsAndTracking(fetch$1);
-	} catch (e) {}
+		console.log("AdBlocker initialized");
+	} catch (e) {
+		console.error("AdBlocker failed:", e);
+	}
 	createWindow();
 });
 function createWindow() {

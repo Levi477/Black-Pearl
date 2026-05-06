@@ -37,6 +37,15 @@ export default function App() {
   const [completedDownloads, setCompletedDownloads] = useState([]);
   const [activeDownloads, setActiveDownloads] = useState([]);
 
+  const handleSelectExtension = async (name) => {
+    setActiveExt(name);
+    const data = await window.api.setExtension(name);
+    setCategories(data.categories);
+    setCapabilities(data.capabilities);
+    clearCache();
+    loadHomepage(name);
+  };
+
   const {
     games,
     loading,
@@ -82,15 +91,6 @@ export default function App() {
       });
     }
   }, []);
-
-  const handleSelectExtension = async (name) => {
-    setActiveExt(name);
-    const data = await window.api.setExtension(name);
-    setCategories(data.categories);
-    setCapabilities(data.capabilities);
-    clearCache();
-    loadHomepage(name);
-  };
 
   const isDownloaded = (gameName) =>
     completedDownloads.some(
