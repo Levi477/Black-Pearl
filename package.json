@@ -1,5 +1,5 @@
 {
-  "name": "Black Pearl",
+  "name": "black-pearl",
   "private": true,
   "version": "0.0.0",
   "main": "electron/main.js",
@@ -40,8 +40,8 @@
     "vite-plugin-electron": "^0.28.0"
   },
   "build": {
-    "appId": "com.gamestream.app",
-    "productName": "CloudGames",
+    "appId": "com.levi.blackpearl",
+    "productName": "Black Pearl",
     "directories": {
       "output": "release"
     },
@@ -53,9 +53,32 @@
       {
         "from": "extensions",
         "to": "extensions",
-        "filter": [
-          "**/*"
-        ]
+        "filter": ["**/*"]
+      },
+      "aria2c.exe",
+      "aria2c",
+      "aria2c-linux"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Levi477",
+        "repo": "YOUR_REPO_NAME_HERE"
       }
     ]
   }

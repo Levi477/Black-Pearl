@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
+  getCustomThemes: () => ipcRenderer.invoke("get-custom-themes"),
+  installTheme: (url) => ipcRenderer.invoke("install-theme", url),
   getExtensions: () => ipcRenderer.invoke("get-extensions"),
   setExtension: (name) => ipcRenderer.invoke("set-extension", name),
   getHomepage: () => ipcRenderer.invoke("get-homepage"),

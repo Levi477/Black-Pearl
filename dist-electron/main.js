@@ -36275,6 +36275,10 @@ Module.prototype.require = function(request) {
 };
 var mainWindow;
 var adBlocker = null;
+if (process.platform === "win32") {
+	app.commandLine.appendSwitch("disable-direct-composition");
+	app.commandLine.appendSwitch("disable-direct-composition-video-overlays");
+}
 var extensions = {};
 var activeExt = null;
 var pageCache = /* @__PURE__ */ new Map();
@@ -36296,6 +36300,15 @@ function loadExtensions() {
 	};
 	loadFolder(builtinExtPath);
 	loadFolder(userExtPath);
+}
+var themesPath = path.join(app.getPath("userData"), "custom_themes.json");
+function getCustomThemes() {
+	if (!fs.existsSync(themesPath)) return [];
+	try {
+		return JSON.parse(fs.readFileSync(themesPath));
+	} catch (e) {
+		return [];
+	}
 }
 var dbPath = path.join(app.getPath("userData"), "blackpearl_db.json");
 function getDB() {
@@ -36397,6 +36410,27 @@ function createWindow() {
 }
 app.on("will-quit", () => {
 	if (aria2Process) aria2Process.kill();
+});
+ipcMain.handle("get-custom-themes", () => getCustomThemes());
+ipcMain.handle("install-theme", async (e, url) => {
+	try {
+		const res = await axios.get(url);
+		const newTheme = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+		if (!newTheme.id || !newTheme.color) throw new Error("Invalid theme JSON format.");
+		let customThemes = getCustomThemes();
+		customThemes = customThemes.filter((t) => t.id !== newTheme.id);
+		customThemes.push(newTheme);
+		fs.writeFileSync(themesPath, JSON.stringify(customThemes, null, 2));
+		return {
+			success: true,
+			theme: newTheme
+		};
+	} catch (error) {
+		return {
+			success: false,
+			message: error.message
+		};
+	}
 });
 var getCacheKey = (type, param, page) => `${activeExt?.name}_${type}_${param}_${page}`;
 ipcMain.handle("get-extensions", () => Object.keys(extensions));

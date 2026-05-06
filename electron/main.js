@@ -24,7 +24,11 @@ Module.prototype.require = function (request) {
 let mainWindow;
 let adBlocker = null;
 
-// --- EXTENSIONS & CACHE ---
+// Prevents Chromium from crashing on AMD GPUs in Windows
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("disable-direct-composition");
+  app.commandLine.appendSwitch("disable-direct-composition-video-overlays");
+}
 const extensions = {};
 let activeExt = null;
 const pageCache = new Map();
@@ -58,6 +62,17 @@ function loadExtensions() {
 }
 
 // --- DATABASE ---
+const themesPath = path.join(app.getPath("userData"), "custom_themes.json");
+
+function getCustomThemes() {
+  if (!fs.existsSync(themesPath)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(themesPath));
+  } catch (e) {
+    return [];
+  }
+}
+
 const dbPath = path.join(app.getPath("userData"), "blackpearl_db.json");
 function getDB() {
   if (!fs.existsSync(dbPath))
@@ -136,7 +151,7 @@ setInterval(async () => {
             });
             updated = true;
           }
-          // FIX: Purge from Aria2 memory so it doesn't repopulate when user clears history
+          // Purge from Aria2 memory so it doesn't repopulate when user clears history
           try {
             await aria2.call("removeDownloadResult", c.gid);
           } catch (e) {}
@@ -194,6 +209,30 @@ app.on("will-quit", () => {
 });
 
 // --- IPC HANDLERS ---
+
+ipcMain.handle("get-custom-themes", () => getCustomThemes());
+
+ipcMain.handle("install-theme", async (e, url) => {
+  try {
+    const res = await axios.get(url);
+    const newTheme =
+      typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+
+    if (!newTheme.id || !newTheme.color)
+      throw new Error("Invalid theme JSON format.");
+
+    let customThemes = getCustomThemes();
+    // Prevent duplicates
+    customThemes = customThemes.filter((t) => t.id !== newTheme.id);
+    customThemes.push(newTheme);
+
+    fs.writeFileSync(themesPath, JSON.stringify(customThemes, null, 2));
+    return { success: true, theme: newTheme };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+});
+
 const getCacheKey = (type, param, page) =>
   `${activeExt?.name}_${type}_${param}_${page}`;
 ipcMain.handle("get-extensions", () => Object.keys(extensions));
@@ -301,10 +340,10 @@ ipcMain.handle(
 );
 ipcMain.handle("cancel-download", async (e, gid) => {
   try {
-    const status = await aria2.call("tellStatus", gid); // Grab file info BEFORE canceling
+    const status = await aria2.call("tellStatus", gid);
     await aria2.call("forceRemove", gid);
 
-    // FIX: Delete the residual files from the hard drive
+    // Delete the residual files from the hard drive
     if (status && status.files) {
       status.files.forEach((f) => {
         if (f.path && fs.existsSync(f.path)) fs.unlinkSync(f.path);
