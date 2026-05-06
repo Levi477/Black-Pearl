@@ -1,18 +1,19 @@
-const { app, BrowserWindow, ipcMain, session, dialog } = require("electron");
-const path = require("path");
-const fs = require("fs");
-const axios = require("axios");
-const { spawn } = require("child_process");
-const Aria2 = require("aria2").default || require("aria2");
-const { ElectronBlocker } = require("@cliqz/adblocker-electron");
-const fetch = require("cross-fetch");
+import { app, BrowserWindow, ipcMain, session, dialog } from "electron";
+import path from "path";
+import fs from "fs";
+import axios from "axios";
+import { spawn } from "child_process";
+import Aria2 from "aria2.default";
+import { ElectronBlocker } from "@ghostery/adblocker-electron";
+import fetch from "cross-fetch";
+import Module from "module";
+import process from "process";
 
-const Module = require("module");
 const originalRequire = Module.prototype.require;
-const sharedAxios = originalRequire.call(module, "axios");
+const sharedAxios = originalRequire.call(Module.module, "axios");
 let sharedCheerio;
 try {
-  sharedCheerio = originalRequire.call(module, "cheerio");
+  sharedCheerio = originalRequire.call(Module.module, "cheerio");
 } catch (e) {}
 
 Module.prototype.require = function (request) {
@@ -119,8 +120,8 @@ function startAria2() {
       "--enable-rpc",
       "--rpc-listen-all=false",
       "--rpc-listen-port=6800",
-      "--max-connection-per-server=16",
-      "--split=16",
+      "--max-connection-per-server=32",
+      "--split=32",
       "--continue=true",
     ]);
   }
