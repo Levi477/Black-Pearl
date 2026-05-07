@@ -28,7 +28,8 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tailwindcss": "^4.2.4",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "v8-compile-cache": "^2.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

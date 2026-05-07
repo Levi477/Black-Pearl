@@ -81,12 +81,6 @@ export default function App() {
         setLibrary(db.library || []);
       });
 
-      window.api.getCustomThemes().then((customThemes) => {
-        if (customThemes && customThemes.length > 0) {
-          setThemes([...DEFAULT_THEMES, ...customThemes]);
-        }
-      });
-
       window.api.onDownloadUpdate((data) => {
         setActiveDownloads(data);
         window.api
