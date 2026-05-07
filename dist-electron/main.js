@@ -36253,7 +36253,7 @@ var require_node_ponyfill = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 }));
 //#endregion
 //#region electron/main.js
-var { app, BrowserWindow, ipcMain, session, dialog } = require("electron");
+var { app, BrowserWindow, ipcMain, session, dialog, Menu } = require("electron");
 var path = require("path");
 var fs = require("fs");
 var axios = require_axios();
@@ -36273,6 +36273,8 @@ Module.prototype.require = function(request) {
 	if (request === "cheerio" && sharedCheerio) return sharedCheerio;
 	return originalRequire.apply(this, arguments);
 };
+Menu.setApplicationMenu(null);
+app.commandLine.appendSwitch("js-flags", "--max-old-space-size=256");
 var mainWindow;
 var adBlocker = null;
 if (process.platform === "win32") {
@@ -36301,22 +36303,14 @@ function loadExtensions() {
 	loadFolder(builtinExtPath);
 	loadFolder(userExtPath);
 }
-var themesPath = path.join(app.getPath("userData"), "custom_themes.json");
-function getCustomThemes() {
-	if (!fs.existsSync(themesPath)) return [];
-	try {
-		return JSON.parse(fs.readFileSync(themesPath));
-	} catch (e) {
-		return [];
-	}
-}
 var dbPath = path.join(app.getPath("userData"), "blackpearl_db.json");
 function getDB() {
 	if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify({
 		profile: {
 			name: "User",
 			avatar: "",
-			downloadPath: app.getPath("downloads")
+			downloadPath: app.getPath("downloads"),
+			liteMode: false
 		},
 		wishlist: [],
 		completedDownloads: []
@@ -36381,18 +36375,10 @@ function startAria2() {
 		aria2Process.stderr.on("data", (data) => {
 			console.error("[ARIA2 STDERR]", data.toString());
 		});
-		aria2Process.on("spawn", () => {
-			console.log("ARIA2 PROCESS SPAWNED");
-		});
-		aria2Process.on("error", (err) => {
-			console.error("ARIA2 PROCESS ERROR:", err);
-		});
-		aria2Process.on("exit", (code, signal) => {
-			console.error("ARIA2 EXITED:", "code=", code, "signal=", signal);
-		});
-		aria2Process.on("close", (code, signal) => {
-			console.error("ARIA2 CLOSED:", "code=", code, "signal=", signal);
-		});
+		aria2Process.on("spawn", () => console.log("ARIA2 PROCESS SPAWNED"));
+		aria2Process.on("error", (err) => console.error("ARIA2 PROCESS ERROR:", err));
+		aria2Process.on("exit", (code, signal) => console.error("ARIA2 EXITED:", "code=", code, "signal=", signal));
+		aria2Process.on("close", (code, signal) => console.error("ARIA2 CLOSED:", "code=", code, "signal=", signal));
 		return true;
 	} catch (err) {
 		console.error("FAILED TO START ARIA2:", err);
@@ -36409,19 +36395,14 @@ async function connectAria2(maxRetries = 15) {
 		console.log("CONNECTED TO ARIA2 SUCCESSFULLY");
 		return true;
 	} catch (err) {
-		console.error("ARIA2 CONNECTION FAILED:");
-		console.error(err);
+		console.error("ARIA2 CONNECTION FAILED:", err);
 		await new Promise((resolve) => setTimeout(resolve, 1e3));
 	}
 	console.error("FAILED TO CONNECT TO ARIA2 AFTER ALL RETRIES");
 	return false;
 }
 setInterval(async () => {
-	if (!mainWindow) return;
-	if (!aria2Process) {
-		console.log("Polling skipped: aria2Process missing");
-		return;
-	}
+	if (!mainWindow || !aria2Process) return;
 	try {
 		const active = await aria2.call("tellActive");
 		const waiting = await aria2.call("tellWaiting", 0, 100);
@@ -36490,9 +36471,11 @@ function createWindow() {
 		width: 1400,
 		height: 900,
 		titleBarStyle: "hiddenInset",
+		autoHideMenuBar: true,
 		webPreferences: {
 			preload: path.join(__dirname, "preload.js"),
-			contextIsolation: true
+			contextIsolation: true,
+			backgroundThrottling: true
 		}
 	});
 	if (process.env.VITE_DEV_SERVER_URL) mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
@@ -36500,27 +36483,6 @@ function createWindow() {
 }
 app.on("will-quit", () => {
 	if (aria2Process) aria2Process.kill();
-});
-ipcMain.handle("get-custom-themes", () => getCustomThemes());
-ipcMain.handle("install-theme", async (e, url) => {
-	try {
-		const res = await axios.get(url);
-		const newTheme = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-		if (!newTheme.id || !newTheme.color) throw new Error("Invalid theme JSON format.");
-		let customThemes = getCustomThemes();
-		customThemes = customThemes.filter((t) => t.id !== newTheme.id);
-		customThemes.push(newTheme);
-		fs.writeFileSync(themesPath, JSON.stringify(customThemes, null, 2));
-		return {
-			success: true,
-			theme: newTheme
-		};
-	} catch (error) {
-		return {
-			success: false,
-			message: error.message
-		};
-	}
 });
 var getCacheKey = (type, param, page) => `${activeExt?.name}_${type}_${param}_${page}`;
 ipcMain.handle("get-extensions", () => Object.keys(extensions));

@@ -1,4 +1,11 @@
-const { app, BrowserWindow, ipcMain, session, dialog } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  session,
+  dialog,
+  Menu,
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
 const axios = require("axios");
@@ -21,6 +28,9 @@ Module.prototype.require = function (request) {
   return originalRequire.apply(this, arguments);
 };
 
+Menu.setApplicationMenu(null);
+app.commandLine.appendSwitch("js-flags", "--max-old-space-size=256");
+
 let mainWindow;
 let adBlocker = null;
 
@@ -29,6 +39,7 @@ if (process.platform === "win32") {
   app.commandLine.appendSwitch("disable-direct-composition");
   app.commandLine.appendSwitch("disable-direct-composition-video-overlays");
 }
+
 const extensions = {};
 let activeExt = null;
 const pageCache = new Map();
@@ -62,17 +73,6 @@ function loadExtensions() {
 }
 
 // --- DATABASE ---
-const themesPath = path.join(app.getPath("userData"), "custom_themes.json");
-
-function getCustomThemes() {
-  if (!fs.existsSync(themesPath)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(themesPath));
-  } catch (e) {
-    return [];
-  }
-}
-
 const dbPath = path.join(app.getPath("userData"), "blackpearl_db.json");
 function getDB() {
   if (!fs.existsSync(dbPath))
@@ -83,6 +83,7 @@ function getDB() {
           name: "User",
           avatar: "",
           downloadPath: app.getPath("downloads"),
+          liteMode: false,
         },
         wishlist: [],
         completedDownloads: [],
@@ -130,7 +131,6 @@ function startAria2() {
   console.log("Final Aria2 Path:", ariaPath);
 
   const exists = fs.existsSync(ariaPath);
-
   console.log("Binary Exists:", exists);
 
   if (!exists) {
@@ -140,7 +140,6 @@ function startAria2() {
 
   try {
     const stat = fs.statSync(ariaPath);
-
     console.log("Binary Size:", stat.size);
 
     try {
@@ -160,9 +159,7 @@ function startAria2() {
         "--split=32",
         "--continue=true",
       ],
-      {
-        stdio: ["ignore", "pipe", "pipe"],
-      },
+      { stdio: ["ignore", "pipe", "pipe"] },
     );
 
     console.log("Spawned Aria2 PID:", aria2Process.pid);
@@ -170,31 +167,23 @@ function startAria2() {
     aria2Process.stdout.on("data", (data) => {
       console.log("[ARIA2 STDOUT]", data.toString());
     });
-
     aria2Process.stderr.on("data", (data) => {
       console.error("[ARIA2 STDERR]", data.toString());
     });
-
-    aria2Process.on("spawn", () => {
-      console.log("ARIA2 PROCESS SPAWNED");
-    });
-
-    aria2Process.on("error", (err) => {
-      console.error("ARIA2 PROCESS ERROR:", err);
-    });
-
-    aria2Process.on("exit", (code, signal) => {
-      console.error("ARIA2 EXITED:", "code=", code, "signal=", signal);
-    });
-
-    aria2Process.on("close", (code, signal) => {
-      console.error("ARIA2 CLOSED:", "code=", code, "signal=", signal);
-    });
+    aria2Process.on("spawn", () => console.log("ARIA2 PROCESS SPAWNED"));
+    aria2Process.on("error", (err) =>
+      console.error("ARIA2 PROCESS ERROR:", err),
+    );
+    aria2Process.on("exit", (code, signal) =>
+      console.error("ARIA2 EXITED:", "code=", code, "signal=", signal),
+    );
+    aria2Process.on("close", (code, signal) =>
+      console.error("ARIA2 CLOSED:", "code=", code, "signal=", signal),
+    );
 
     return true;
   } catch (err) {
     console.error("FAILED TO START ARIA2:", err);
-
     return false;
   }
 }
@@ -207,48 +196,31 @@ async function connectAria2(maxRetries = 15) {
   for (let i = 1; i <= maxRetries; i++) {
     try {
       console.log(`Attempt ${i}/${maxRetries}`);
-
       await aria2.open();
-
       console.log("CONNECTED TO ARIA2 SUCCESSFULLY");
-
       return true;
     } catch (err) {
-      console.error("ARIA2 CONNECTION FAILED:");
-
-      console.error(err);
-
+      console.error("ARIA2 CONNECTION FAILED:", err);
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
 
   console.error("FAILED TO CONNECT TO ARIA2 AFTER ALL RETRIES");
-
   return false;
 }
 
 // ---------------- POLLING ----------------
-
 setInterval(async () => {
-  if (!mainWindow) return;
-
-  if (!aria2Process) {
-    console.log("Polling skipped: aria2Process missing");
-    return;
-  }
+  if (!mainWindow || !aria2Process) return;
 
   try {
     const active = await aria2.call("tellActive");
-
     const waiting = await aria2.call("tellWaiting", 0, 100);
-
     const stopped = await aria2.call("tellStopped", 0, 100);
-
     const completed = stopped.filter((d) => d.status === "complete");
 
     if (completed.length > 0) {
       let db = getDB();
-
       let updated = false;
 
       for (const c of completed) {
@@ -262,7 +234,6 @@ setInterval(async () => {
             gameName: activeGameMap.get(c.gid) || fileName,
             date: new Date().toISOString(),
           });
-
           updated = true;
         }
 
@@ -273,27 +244,19 @@ setInterval(async () => {
         }
       }
 
-      if (updated) {
-        saveDB(db);
-      }
+      if (updated) saveDB(db);
     }
 
     mainWindow.webContents.send(
       "download-update",
       [...active, ...waiting].map((d) => ({
         gid: d.gid,
-
         gameName:
           activeGameMap.get(d.gid) || d.files[0]?.path?.split(/[/\\]/).pop(),
-
         name: d.files[0]?.path?.split(/[/\\]/).pop() || "Resolving...",
-
         total: Number(d.totalLength || 0),
-
         completed: Number(d.completedLength || 0),
-
         speed: Number(d.downloadSpeed || 0),
-
         status: d.status,
       })),
     );
@@ -303,7 +266,6 @@ setInterval(async () => {
 }, 1000);
 
 // ---------------- APP READY ----------------
-
 app.whenReady().then(async () => {
   console.log("=================================");
   console.log("APP READY");
@@ -311,25 +273,21 @@ app.whenReady().then(async () => {
 
   try {
     await loadExtensions();
-
     console.log("Extensions loaded successfully");
   } catch (e) {
     console.error("Extension loading failed:", e);
   }
 
   const started = startAria2();
-
   console.log("Aria2 Started:", started);
 
   if (started) {
     const connected = await connectAria2();
-
     console.log("Aria2 Connected:", connected);
   }
 
   try {
     adBlocker = await ElectronBlocker.fromPrebuiltAdsAndTracking(fetch);
-
     console.log("AdBlocker initialized");
   } catch (e) {
     console.error("AdBlocker failed:", e);
@@ -337,51 +295,32 @@ app.whenReady().then(async () => {
 
   createWindow();
 });
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     titleBarStyle: "hiddenInset",
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
+      backgroundThrottling: true,
     },
   });
   if (process.env.VITE_DEV_SERVER_URL)
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
+
 app.on("will-quit", () => {
   if (aria2Process) aria2Process.kill();
 });
 
 // --- IPC HANDLERS ---
-
-ipcMain.handle("get-custom-themes", () => getCustomThemes());
-
-ipcMain.handle("install-theme", async (e, url) => {
-  try {
-    const res = await axios.get(url);
-    const newTheme =
-      typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-
-    if (!newTheme.id || !newTheme.color)
-      throw new Error("Invalid theme JSON format.");
-
-    let customThemes = getCustomThemes();
-    // Prevent duplicates
-    customThemes = customThemes.filter((t) => t.id !== newTheme.id);
-    customThemes.push(newTheme);
-
-    fs.writeFileSync(themesPath, JSON.stringify(customThemes, null, 2));
-    return { success: true, theme: newTheme };
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-});
-
 const getCacheKey = (type, param, page) =>
   `${activeExt?.name}_${type}_${param}_${page}`;
+
 ipcMain.handle("get-extensions", () => Object.keys(extensions));
 ipcMain.handle("set-extension", (e, name) => {
   if (extensions[name]) activeExt = extensions[name];
@@ -476,7 +415,7 @@ ipcMain.handle("clear-completed", () => {
   return db;
 });
 
-// --- DOWNLOAD CONTROLS & DELETION FIX ---
+// --- DOWNLOAD CONTROLS ---
 ipcMain.handle(
   "pause-download",
   async (e, gid) => await aria2.call("pause", gid),
@@ -489,8 +428,6 @@ ipcMain.handle("cancel-download", async (e, gid) => {
   try {
     const status = await aria2.call("tellStatus", gid);
     await aria2.call("forceRemove", gid);
-
-    // Delete the residual files from the hard drive
     if (status && status.files) {
       status.files.forEach((f) => {
         if (f.path && fs.existsSync(f.path)) fs.unlinkSync(f.path);

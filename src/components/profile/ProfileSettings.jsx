@@ -1,19 +1,7 @@
-// Manages profile view, file uploading, directory selection, and custom theme installation.
-import { useState } from "react";
-import { User, Image as ImageIcon, HardDrive, Palette } from "lucide-react";
+// Manages profile view, avatar upload, and download directory selection.
+import { User, Image as ImageIcon, HardDrive, Zap } from "lucide-react"; // <-- Added Zap
 
-export default function ProfileSettings({
-  profile,
-  setProfile,
-  currentTheme,
-  setCurrentTheme,
-  themes,
-  setThemes,
-  setToast,
-}) {
-  const [themeUrl, setThemeUrl] = useState("");
-  const [installingTheme, setInstallingTheme] = useState(false);
-
+export default function ProfileSettings({ profile, setProfile, currentTheme }) {
   const handleAvatarUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -42,34 +30,11 @@ export default function ProfileSettings({
     }
   };
 
-  const handleInstallTheme = async () => {
-    if (!themeUrl.trim()) return;
-    setInstallingTheme(true);
-
-    let finalUrl = themeUrl.trim();
-    if (
-      finalUrl.includes("github.com") &&
-      !finalUrl.includes("raw.githubusercontent.com")
-    ) {
-      finalUrl = finalUrl
-        .replace("github.com", "raw.githubusercontent.com")
-        .replace("/blob/", "/");
-    }
-
-    const result = await window.api.installTheme(finalUrl);
-    if (result.success) {
-      setThemes((prev) => [
-        ...prev.filter((t) => t.id !== result.theme.id),
-        result.theme,
-      ]);
-      setCurrentTheme(result.theme);
-      setThemeUrl("");
-      setToast("Theme Installed Successfully!");
-      setTimeout(() => setToast(null), 3000);
-    } else {
-      alert("⚠️ Failed to install theme: " + result.message);
-    }
-    setInstallingTheme(false);
+  // <-- Handle the new toggle
+  const handleLiteModeToggle = () => {
+    const newProf = { ...profile, liteMode: !profile.liteMode };
+    setProfile(newProf);
+    window.api.updateProfile(newProf);
   };
 
   return (
@@ -80,7 +45,7 @@ export default function ProfileSettings({
         Profile Settings
       </h2>
 
-      <div className="bg-black/40 backdrop-blur-[40px] border border-white/10 p-10 rounded-3xl flex flex-col items-center gap-8 shadow-2xl relative overflow-hidden">
+      <div className="bg-black/40 backdrop-blur-[80px] border border-white/10 p-10 rounded-3xl flex flex-col items-center gap-8 shadow-2xl relative overflow-hidden">
         <div
           className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${currentTheme.textGradient}`}
         />
@@ -122,57 +87,55 @@ export default function ProfileSettings({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-black/40 p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden flex flex-col justify-center">
-          <div
-            className={`absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b ${currentTheme.textGradient}`}
+      <div className="bg-black/40 p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden flex flex-col justify-center">
+        <div
+          className={`absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b ${currentTheme.textGradient}`}
+        />
+        <label
+          className={`text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2 ${currentTheme.iconColor}`}
+        >
+          <HardDrive size={16} /> Download Directory
+        </label>
+        <div className="flex gap-4 items-center">
+          <input
+            type="text"
+            readOnly
+            value={profile.downloadPath || ""}
+            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none cursor-default font-mono truncate"
           />
-          <label
-            className={`text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2 ${currentTheme.iconColor}`}
+          <button
+            onClick={handleDirectorySelect}
+            className={`px-6 py-3 rounded-xl font-bold tracking-wider text-xs transition-all shadow-lg border border-white/10 hover:scale-105 active:scale-95 ${currentTheme.activeBg}`}
           >
-            <HardDrive size={16} /> Download Directory
-          </label>
-          <div className="flex gap-4 items-center">
-            <input
-              type="text"
-              readOnly
-              value={profile.downloadPath || ""}
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none cursor-default font-mono truncate"
-            />
-            <button
-              onClick={handleDirectorySelect}
-              className={`px-6 py-3 rounded-xl font-bold tracking-wider text-xs transition-all shadow-lg border border-white/10 hover:scale-105 active:scale-95 ${currentTheme.activeBg}`}
-            >
-              CHANGE
-            </button>
-          </div>
+            CHANGE
+          </button>
         </div>
+      </div>
 
-        <div className="bg-black/40 p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden flex flex-col justify-center">
-          <div
-            className={`absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b ${currentTheme.textGradient}`}
-          />
-          <label
-            className={`text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2 ${currentTheme.iconColor}`}
-          >
-            <Palette size={16} /> Install Custom Theme
-          </label>
-          <div className="flex gap-4 items-center">
-            <input
-              type="text"
-              placeholder="Theme JSON URL..."
-              value={themeUrl}
-              onChange={(e) => setThemeUrl(e.target.value)}
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-white/30 transition-all placeholder:text-gray-500 font-mono truncate"
-            />
-            <button
-              onClick={handleInstallTheme}
-              disabled={installingTheme || !themeUrl}
-              className={`px-6 py-3 rounded-xl font-bold tracking-wider text-xs transition-all shadow-lg border border-white/10 ${themeUrl ? currentTheme.color + " text-black hover:scale-105 active:scale-95" : "bg-white/5 text-gray-500 cursor-not-allowed"}`}
+      <div className="bg-black/40 p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden flex flex-col justify-center">
+        <div
+          className={`absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b ${currentTheme.textGradient}`}
+        />
+        <div className="flex items-center justify-between">
+          <div>
+            <label
+              className={`text-xs font-black uppercase tracking-widest mb-2 flex items-center gap-2 ${currentTheme.iconColor}`}
             >
-              {installingTheme ? "INSTALLING" : "INSTALL"}
-            </button>
+              <Zap size={16} /> Lite Mode (Performance)
+            </label>
+            <p className="text-sm text-gray-400 font-medium mt-1">
+              Disables heavy animations, rendering blurs, and graphical effects
+              for a snappier experience.
+            </p>
           </div>
+          <button
+            onClick={handleLiteModeToggle}
+            className={`relative w-14 h-8 rounded-full transition-colors flex-shrink-0 border border-white/10 ${profile.liteMode ? currentTheme.color : "bg-black"}`}
+          >
+            <div
+              className={`absolute top-1 left-1 bg-white w-6 h-6 rounded-full transition-transform ${profile.liteMode ? "translate-x-6" : ""}`}
+            />
+          </button>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-// Controls navigation and the extension installation process and inputs.
+// src/components/layout/Sidebar.jsx
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Palette } from "lucide-react";
@@ -21,6 +21,7 @@ export default function Sidebar({
   activeCategory,
   currentView,
   searchQuery,
+  profile,
 }) {
   const [installUrl, setInstallUrl] = useState("");
   const [installing, setInstalling] = useState(false);
@@ -46,7 +47,7 @@ export default function Sidebar({
       if (exts.length === 1 || !activeExt)
         handleSelectExtension(exts[exts.length - 1]);
     } else {
-      alert("⚠️ Failed: " + result.message);
+      alert("Failed: " + result.message);
     }
     setInstalling(false);
   };
@@ -58,7 +59,11 @@ export default function Sidebar({
           initial={{ width: 0, opacity: 0, marginLeft: -12 }}
           animate={{ width: 256, opacity: 1, marginLeft: 0 }}
           exit={{ width: 0, opacity: 0, marginLeft: -12 }}
-          transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+          transition={
+            profile?.liteMode
+              ? { duration: 0 }
+              : { type: "spring", bounce: 0, duration: 0.4 }
+          }
           className="bg-black/30 backdrop-blur-[40px] border border-white/10 shadow-2xl rounded-3xl flex flex-col overflow-hidden shrink-0"
         >
           <div className="p-6 border-b border-white/5 bg-black/20 group cursor-default">

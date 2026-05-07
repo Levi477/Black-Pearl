@@ -1,8 +1,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
-  getCustomThemes: () => ipcRenderer.invoke("get-custom-themes"),
-  installTheme: (url) => ipcRenderer.invoke("install-theme", url),
   getExtensions: () => ipcRenderer.invoke("get-extensions"),
   setExtension: (name) => ipcRenderer.invoke("set-extension", name),
   getHomepage: () => ipcRenderer.invoke("get-homepage"),
@@ -29,8 +27,6 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.removeAllListeners("download-update");
     ipcRenderer.on("download-update", (event, data) => callback(data));
   },
-
-  // NEW: Triggers the toast notification
   onDownloadStarted: (callback) => {
     ipcRenderer.removeAllListeners("download-started");
     ipcRenderer.on("download-started", (event, data) => callback(data));

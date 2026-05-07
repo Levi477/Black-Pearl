@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, MotionConfig } from "framer-motion";
 import { Layers } from "lucide-react";
 import { useLibrary } from "./hooks/useLibrary.js";
 import { DEFAULT_THEMES } from "./constants/themes.js";
@@ -14,7 +14,6 @@ import ProfileSettings from "./components/profile/ProfileSettings.jsx";
 
 export default function App() {
   const [currentView, setCurrentView] = useState("browse");
-  const [themes, setThemes] = useState(DEFAULT_THEMES);
   const [currentTheme, setCurrentTheme] = useState(DEFAULT_THEMES[0]);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -32,6 +31,7 @@ export default function App() {
     name: "User",
     avatar: "",
     downloadPath: "",
+    liteMode: false,
   });
   const [wishlist, setWishlist] = useState([]);
   const [completedDownloads, setCompletedDownloads] = useState([]);
@@ -74,11 +74,6 @@ export default function App() {
         setWishlist(db.wishlist);
         setCompletedDownloads(db.completedDownloads);
       });
-      window.api.getCustomThemes().then((customThemes) => {
-        if (customThemes && customThemes.length > 0) {
-          setThemes([...DEFAULT_THEMES, ...customThemes]);
-        }
-      });
       window.api.onDownloadUpdate((data) => {
         setActiveDownloads(data);
         window.api
@@ -98,139 +93,138 @@ export default function App() {
     );
 
   return (
-    <div
-      className={`flex h-screen w-screen text-white overflow-hidden p-3 gap-3 transition-colors duration-1000 ${currentTheme.class}`}
-    >
-      <DownloadToast
-        toast={toast}
-        setToast={setToast}
-        setCurrentView={setCurrentView}
-        setSelectedGame={setSelectedGame}
-        currentTheme={currentTheme}
-      />
-
-      <Sidebar
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        currentTheme={currentTheme}
-        setCurrentTheme={setCurrentTheme}
-        themes={themes}
-        extensions={extensions}
-        setExtensions={setExtensions}
-        activeExt={activeExt}
-        handleSelectExtension={handleSelectExtension}
-        setToast={setToast}
-        loadHomepage={loadHomepage}
-        categories={categories}
-        loadCategory={loadCategory}
-        activeCategory={activeCategory}
-        currentView={currentView}
-        searchQuery={searchQuery}
-      />
-
-      <div className="flex-1 relative flex flex-col overflow-hidden rounded-3xl bg-black/30 backdrop-blur-[40px] border border-white/10 shadow-2xl">
-        <TopBar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          currentView={currentView}
-          activeCategory={activeCategory}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          handleSearch={handleSearch}
-          currentTheme={currentTheme}
-          menuOpen={menuOpen}
-          setMenuOpen={setMenuOpen}
-          profile={profile}
+    <MotionConfig reducedMotion={profile.liteMode ? "always" : "user"}>
+      <div
+        className={`flex h-screen w-screen text-white overflow-hidden p-3 gap-3 transition-colors duration-1000 ${currentTheme.class} ${profile.liteMode ? "lite-mode" : ""}`}
+      >
+        <DownloadToast
+          toast={toast}
+          setToast={setToast}
           setCurrentView={setCurrentView}
           setSelectedGame={setSelectedGame}
+          currentTheme={currentTheme}
         />
 
-        <div className="flex-1 overflow-y-auto relative no-scrollbar">
-          {currentView === "profile" && (
-            <ProfileSettings
-              profile={profile}
-              setProfile={setProfile}
-              currentTheme={currentTheme}
-              setCurrentTheme={setCurrentTheme}
-              themes={themes}
-              setThemes={setThemes}
-              setToast={setToast}
-            />
-          )}
-          {currentView === "wishlist" && (
-            <Wishlist
-              wishlist={wishlist}
-              currentTheme={currentTheme}
-              setCurrentView={setCurrentView}
-              openGame={setSelectedGame}
-            />
-          )}
-          {currentView === "downloads" && (
-            <DownloadsView
-              activeDownloads={activeDownloads}
-              completedDownloads={completedDownloads}
-              setCompletedDownloads={setCompletedDownloads}
-              currentTheme={currentTheme}
-            />
-          )}
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          currentTheme={currentTheme}
+          setCurrentTheme={setCurrentTheme}
+          themes={DEFAULT_THEMES}
+          extensions={extensions}
+          setExtensions={setExtensions}
+          activeExt={activeExt}
+          handleSelectExtension={handleSelectExtension}
+          setToast={setToast}
+          loadHomepage={loadHomepage}
+          categories={categories}
+          loadCategory={loadCategory}
+          activeCategory={activeCategory}
+          currentView={currentView}
+          searchQuery={searchQuery}
+          profile={profile}
+        />
 
-          {currentView === "browse" && (
-            <div className="p-8">
-              {extensions.length === 0 ? (
-                <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500">
-                  <Layers
-                    size={80}
-                    className={`mb-6 opacity-40 ${currentTheme.iconColor}`}
+        <div className="flex-1 relative flex flex-col overflow-hidden rounded-3xl bg-black/30 backdrop-blur-[80px] border border-white/10 shadow-2xl">
+          <TopBar
+            sidebarOpen={sidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+            currentView={currentView}
+            activeCategory={activeCategory}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            handleSearch={handleSearch}
+            currentTheme={currentTheme}
+            menuOpen={menuOpen}
+            setMenuOpen={setMenuOpen}
+            profile={profile}
+            setCurrentView={setCurrentView}
+            setSelectedGame={setSelectedGame}
+          />
+
+          <div className="flex-1 overflow-y-auto relative no-scrollbar">
+            {currentView === "profile" && (
+              <ProfileSettings
+                profile={profile}
+                setProfile={setProfile}
+                currentTheme={currentTheme}
+              />
+            )}
+            {currentView === "wishlist" && (
+              <Wishlist
+                wishlist={wishlist}
+                currentTheme={currentTheme}
+                setCurrentView={setCurrentView}
+                openGame={setSelectedGame}
+              />
+            )}
+            {currentView === "downloads" && (
+              <DownloadsView
+                activeDownloads={activeDownloads}
+                completedDownloads={completedDownloads}
+                setCompletedDownloads={setCompletedDownloads}
+                currentTheme={currentTheme}
+              />
+            )}
+
+            {currentView === "browse" && (
+              <div className="p-8">
+                {extensions.length === 0 ? (
+                  <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500">
+                    <Layers
+                      size={80}
+                      className={`mb-6 opacity-40 ${currentTheme.iconColor}`}
+                    />
+                    <h2 className="text-2xl font-black mb-2 text-white tracking-widest">
+                      NO SOURCES FOUND
+                    </h2>
+                    <p className="text-sm font-medium">
+                      Please install an extension via the sidebar to load games.
+                    </p>
+                  </div>
+                ) : loading ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    {[...Array(15)].map((_, i) => (
+                      <div key={i} className="flex flex-col gap-3">
+                        <div className="rounded-2xl aspect-[3/4] skeleton shadow-lg" />
+                        <div className="h-4 skeleton rounded w-3/4 mt-1" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <GameGrid
+                    games={games}
+                    currentTheme={currentTheme}
+                    openGame={setSelectedGame}
+                    activeDownloads={activeDownloads}
+                    isDownloaded={isDownloaded}
+                    hasMore={hasMore}
+                    loadMore={loadMore}
+                    loadingMore={loadingMore}
                   />
-                  <h2 className="text-2xl font-black mb-2 text-white tracking-widest">
-                    NO SOURCES FOUND
-                  </h2>
-                  <p className="text-sm font-medium">
-                    Please install an extension via the sidebar to load games.
-                  </p>
-                </div>
-              ) : loading ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                  {[...Array(15)].map((_, i) => (
-                    <div key={i} className="flex flex-col gap-3">
-                      <div className="rounded-2xl aspect-[3/4] skeleton shadow-lg" />
-                      <div className="h-4 skeleton rounded w-3/4 mt-1" />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <GameGrid
-                  games={games}
-                  currentTheme={currentTheme}
-                  openGame={setSelectedGame}
-                  activeDownloads={activeDownloads}
-                  isDownloaded={isDownloaded}
-                  hasMore={hasMore}
-                  loadMore={loadMore}
-                  loadingMore={loadingMore}
-                />
-              )}
-            </div>
-          )}
-        </div>
+                )}
+              </div>
+            )}
+          </div>
 
-        <AnimatePresence>
-          {selectedGame && (
-            <GameDetail
-              selectedGame={selectedGame}
-              setSelectedGame={setSelectedGame}
-              currentTheme={currentTheme}
-              isDownloaded={isDownloaded}
-              wishlist={wishlist}
-              setWishlist={setWishlist}
-              detailMenuOpen={detailMenuOpen}
-              setDetailMenuOpen={setDetailMenuOpen}
-              profile={profile}
-              setCurrentView={setCurrentView}
-            />
-          )}
-        </AnimatePresence>
+          <AnimatePresence>
+            {selectedGame && (
+              <GameDetail
+                selectedGame={selectedGame}
+                setSelectedGame={setSelectedGame}
+                currentTheme={currentTheme}
+                isDownloaded={isDownloaded}
+                wishlist={wishlist}
+                setWishlist={setWishlist}
+                detailMenuOpen={detailMenuOpen}
+                setDetailMenuOpen={setDetailMenuOpen}
+                profile={profile}
+                setCurrentView={setCurrentView}
+              />
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+    </MotionConfig>
   );
 }
