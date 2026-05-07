@@ -44,7 +44,7 @@ export default function GameDetail({
   const [steamLoading, setSteamLoading] = useState(true);
   const [launching, setLaunching] = useState(false);
   
-  // Track parameters locally so typing doesn't feel laggy
+  
   const [localParams, setLocalParams] = useState("");
   const carouselRef = useRef(null);
 
