@@ -1,7 +1,3 @@
-# Download Alpha Version Release [Here](https://github.com/Levi477/Black-Pearl/releases)
-
-# How to Build :
-
 <div align="center">
 
 # 🏴‍☠️ Black Pearl
@@ -20,6 +16,8 @@
 </div>
 
 ---
+# Download Alpha Version Release [Here](https://github.com/Levi477/Black-Pearl/releases)
+
 
 ## ✨ Features
 
