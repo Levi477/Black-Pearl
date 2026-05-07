@@ -56,9 +56,8 @@ body,
     }
 }
 
-/* --- FROSTED GLASS EFFECT --- */
 .glass-panel {
-    @apply bg-white/[0.04] backdrop-blur-[40px] border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.6)];
+    @apply bg-white/4 backdrop-blur-[40px] border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.6)];
 }
 
 .glass-inner {

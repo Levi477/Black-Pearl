@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-windows:
-    name: Build Windows (x64 & ARM64)
+    name: Build Windows 
     runs-on: windows-latest
     permissions:
       contents: write
@@ -24,6 +24,13 @@ jobs:
 
       - name: Install Dependencies
         run: npm install
+
+      - name: Set App Version from Git Tag
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "Updating app version to $VERSION"
+          npm version $VERSION --no-git-tag-version
 
       - name: Build Frontend
         run: npm run build
