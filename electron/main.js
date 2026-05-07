@@ -41,31 +41,29 @@ if (process.platform === "win32") {
 }
 
 app.whenReady().then(async () => {
-  console.log("[App] Ready — initializing modules...");
+  console.log("[App] Ready initializing modules...");
 
-  // Synchronous tasks
   loadExtensions();
   loadSteamCache();
   createWindow();
 
-  // Route IPC Handlers to Services (Pass active states as callbacks)
   setupDatabaseIPC(ipcMain);
   setupSteamIPC(ipcMain);
   setupExtensionsIPC(ipcMain);
   setupLauncherIPC(ipcMain, () => mainWindow);
   setupAria2IPC(ipcMain, () => adBlocker);
 
-  // Background processes
-  const started = startAria2();
-  if (started) {
-    connectAria2().then((ok) => {
-      if (ok) {
-        console.log("[App] Aria2 background init complete");
-        startPolling(() => mainWindow);
-      }
-    });
-  }
-
+// Background processes 
+  startAria2().then((started) => {
+    if (started) {
+      connectAria2().then((ok) => {
+        if (ok) {
+          console.log("[App] Aria2 background init complete");
+          startPolling(() => mainWindow);
+        }
+      });
+    }
+  });
   ElectronBlocker.fromPrebuiltAdsAndTracking(fetch)
     .then((b) => {
       adBlocker = b;
@@ -78,6 +76,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    frame: false,
     titleBarStyle: "hiddenInset",
     autoHideMenuBar: true,
     webPreferences: {
@@ -105,3 +104,13 @@ ipcMain.handle("select-directory", async () => {
   });
   return r.canceled ? null : r.filePaths[0];
 });
+
+ipcMain.on("window-minimize", () => mainWindow.minimize());
+ipcMain.on("window-maximize", () => {
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow.maximize();
+  }
+});
+ipcMain.on("window-close", () => mainWindow.close());

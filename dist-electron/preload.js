@@ -56,6 +56,9 @@ contextBridge.exposeInMainWorld("api", {
 	onGameExited: (callback) => {
 		ipcRenderer.removeAllListeners("game-exited");
 		ipcRenderer.on("game-exited", (event, gameName) => callback(gameName));
-	}
+	},
+	minimizeWindow: () => ipcRenderer.send("window-minimize"),
+	maximizeWindow: () => ipcRenderer.send("window-maximize"),
+	closeWindow: () => ipcRenderer.send("window-close")
 });
 //#endregion

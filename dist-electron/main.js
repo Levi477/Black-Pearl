@@ -36868,28 +36868,51 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var { spawn } = require("child_process");
 	var path$1 = require("path");
 	var fs = require("fs");
+	var net = require("net");
 	var Aria2 = (init_Aria2(), __toCommonJS(Aria2_exports)).default || (init_Aria2(), __toCommonJS(Aria2_exports));
 	var { getDB, saveDB } = require_database();
 	var aria2Process;
+	var aria2;
 	var activeGameMap = /* @__PURE__ */ new Map();
-	var aria2 = new Aria2({
-		host: "127.0.0.1",
-		port: 6800,
-		secure: false,
-		secret: ""
-	});
-	function startAria2() {
+	function findFreePort(startPort, maxPort = 6900) {
+		return new Promise((resolve, reject) => {
+			const server = net.createServer();
+			server.unref();
+			server.on("error", (err) => {
+				if (err.code === "EADDRINUSE") if (startPort < maxPort) {
+					console.log(`[ARIA2] Port ${startPort} is busy, trying ${startPort + 1}...`);
+					resolve(findFreePort(startPort + 1, maxPort));
+				} else reject(/* @__PURE__ */ new Error("No free ports available for Aria2"));
+				else reject(err);
+			});
+			server.listen(startPort, "127.0.0.1", () => {
+				const port = server.address().port;
+				server.close(() => {
+					resolve(port);
+				});
+			});
+		});
+	}
+	async function startAria2() {
 		const binaryName = process.platform === "darwin" ? "aria2c" : process.platform === "linux" ? "aria2c-linux" : "aria2c.exe";
-		const ariaPath = app$1.isPackaged ? path$1.join(process.resourcesPath, binaryName) : path$1.join(__dirname, "../../", binaryName);
+		const ariaPath = app$1.isPackaged ? path$1.join(process.resourcesPath, binaryName) : path$1.join(app$1.getAppPath(), binaryName);
 		if (!fs.existsSync(ariaPath)) {
 			console.error("ARIA2 BINARY NOT FOUND at:", ariaPath);
 			return false;
 		}
 		try {
+			const freePort = await findFreePort(6800);
+			console.log(`[ARIA2] Found free port: ${freePort}`);
+			aria2 = new Aria2({
+				host: "127.0.0.1",
+				port: freePort,
+				secure: false,
+				secret: ""
+			});
 			aria2Process = spawn(ariaPath, [
 				"--enable-rpc",
 				"--rpc-listen-all=false",
-				"--rpc-listen-port=6800",
+				`--rpc-listen-port=${freePort}`,
 				"--max-connection-per-server=16",
 				"--split=32",
 				"--continue=true"
@@ -36909,9 +36932,10 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 	}
 	async function connectAria2(maxRetries = 15) {
+		if (!aria2) return false;
 		for (let i = 1; i <= maxRetries; i++) try {
 			await aria2.open();
-			console.log("[ARIA2] Connected successfully");
+			console.log(`[ARIA2] Connected successfully on port ${aria2.port}`);
 			return true;
 		} catch (err) {
 			await new Promise((r) => setTimeout(r, 1e3));
@@ -36922,7 +36946,7 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	function startPolling(getMainWindow) {
 		setInterval(async () => {
 			const mainWindow = getMainWindow();
-			if (!mainWindow || !aria2Process) return;
+			if (!mainWindow || !aria2Process || !aria2) return;
 			try {
 				const active = await aria2.call("tellActive");
 				const waiting = await aria2.call("tellWaiting", 0, 100);
@@ -37074,7 +37098,7 @@ if (process.platform === "win32") {
 	app.commandLine.appendSwitch("disable-direct-composition-video-overlays");
 }
 app.whenReady().then(async () => {
-	console.log("[App] Ready — initializing modules...");
+	console.log("[App] Ready initializing modules...");
 	loadExtensions();
 	loadSteamCache();
 	createWindow();
@@ -37083,11 +37107,13 @@ app.whenReady().then(async () => {
 	setupExtensionsIPC(ipcMain);
 	setupLauncherIPC(ipcMain, () => mainWindow);
 	setupAria2IPC(ipcMain, () => adBlocker);
-	if (startAria2()) connectAria2().then((ok) => {
-		if (ok) {
-			console.log("[App] Aria2 background init complete");
-			startPolling(() => mainWindow);
-		}
+	startAria2().then((started) => {
+		if (started) connectAria2().then((ok) => {
+			if (ok) {
+				console.log("[App] Aria2 background init complete");
+				startPolling(() => mainWindow);
+			}
+		});
 	});
 	ElectronBlocker.fromPrebuiltAdsAndTracking(fetch$1).then((b) => {
 		adBlocker = b;
@@ -37098,6 +37124,7 @@ function createWindow() {
 	mainWindow = new BrowserWindow({
 		width: 1400,
 		height: 900,
+		frame: false,
 		titleBarStyle: "hiddenInset",
 		autoHideMenuBar: true,
 		webPreferences: {
@@ -37117,4 +37144,10 @@ ipcMain.handle("select-directory", async () => {
 	const r = await dialog.showOpenDialog(mainWindow, { properties: ["openDirectory"] });
 	return r.canceled ? null : r.filePaths[0];
 });
+ipcMain.on("window-minimize", () => mainWindow.minimize());
+ipcMain.on("window-maximize", () => {
+	if (mainWindow.isMaximized()) mainWindow.unmaximize();
+	else mainWindow.maximize();
+});
+ipcMain.on("window-close", () => mainWindow.close());
 //#endregion

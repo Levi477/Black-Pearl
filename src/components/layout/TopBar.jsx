@@ -1,5 +1,4 @@
-// Manages the top header including search input, active view title, and profile menu integration.
-import { Search, Menu } from "lucide-react";
+import { Search, Menu, Minus, Square, X } from "lucide-react"; // <-- Added window icons
 import ProfileMenu from "../profile/ProfileMenu";
 
 export default function TopBar({
@@ -18,8 +17,9 @@ export default function TopBar({
   setSelectedGame,
 }) {
   return (
-    <div className="h-20 border-b border-white/5 flex items-center px-6 justify-between shrink-0 z-40 bg-black/20">
-      <div className="flex items-center gap-4">
+    <div className="h-20 border-b border-white/5 flex items-center px-6 justify-between shrink-0 z-40 bg-black/20 draggable">
+      
+      <div className="flex items-center gap-4 no-drag">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="p-2.5 bg-black/40 border border-white/10 rounded-xl transition-colors hover:bg-white/10 text-white"
@@ -36,7 +36,8 @@ export default function TopBar({
             : currentView.toUpperCase()}
         </h1>
       </div>
-      <div className="flex items-center gap-6">
+      
+      <div className="flex items-center gap-6 no-drag">
         <div className="relative group">
           <Search
             className={`absolute left-4 top-1/2 -translate-y-1/2 ${currentTheme.iconColor} opacity-70`}
@@ -59,6 +60,27 @@ export default function TopBar({
           setCurrentView={setCurrentView}
           setSelectedGame={setSelectedGame}
         />
+
+        <div className="flex items-center gap-2 ml-2 pl-4 border-l border-white/10">
+          <button 
+            onClick={() => window.api.minimizeWindow()} 
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+          >
+            <Minus size={16} />
+          </button>
+          <button 
+            onClick={() => window.api.maximizeWindow()} 
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+          >
+            <Square size={13} />
+          </button>
+          <button 
+            onClick={() => window.api.closeWindow()} 
+            className="p-2 hover:bg-red-500/80 hover:text-white rounded-lg transition-colors text-gray-400"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );

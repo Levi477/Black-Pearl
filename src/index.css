@@ -108,6 +108,14 @@ body,
     scrollbar-width: none;
 }
 
+.draggable {
+    -webkit-app-region: drag;
+}
+
+.no-drag {
+    -webkit-app-region: no-drag;
+}
+
 /* --- LITE MODE OVERRIDES --- */
 .lite-mode * {
     backdrop-filter: none !important;
