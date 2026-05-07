@@ -1,8 +1,11 @@
 //#region electron/preload.js
 var { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("api", {
+	getCustomThemes: () => ipcRenderer.invoke("get-custom-themes"),
+	installTheme: (url) => ipcRenderer.invoke("install-theme", url),
 	getExtensions: () => ipcRenderer.invoke("get-extensions"),
 	setExtension: (name) => ipcRenderer.invoke("set-extension", name),
+	installExtension: (url) => ipcRenderer.invoke("install-extension", url),
 	getHomepage: () => ipcRenderer.invoke("get-homepage"),
 	getCategory: (category, page) => ipcRenderer.invoke("get-category", {
 		category,
@@ -13,12 +16,29 @@ contextBridge.exposeInMainWorld("api", {
 		page
 	}),
 	getSteamMedia: (gameName) => ipcRenderer.invoke("get-steam-media", gameName),
-	installExtension: (url) => ipcRenderer.invoke("install-extension", url),
 	selectDirectory: () => ipcRenderer.invoke("select-directory"),
 	getDB: () => ipcRenderer.invoke("get-db"),
 	updateProfile: (profile) => ipcRenderer.invoke("update-profile", profile),
 	toggleWishlist: (game) => ipcRenderer.invoke("toggle-wishlist", game),
 	clearCompleted: () => ipcRenderer.invoke("clear-completed"),
+	addToLibrary: (game) => ipcRenderer.invoke("add-to-library", game),
+	removeFromLibrary: (gameName) => ipcRenderer.invoke("remove-from-library", gameName),
+	setGameExe: (gameName, exePath) => ipcRenderer.invoke("set-game-exe", {
+		gameName,
+		exePath
+	}),
+	setLaunchParams: (gameName, params) => ipcRenderer.invoke("set-launch-params", {
+		gameName,
+		params
+	}),
+	openGameFolder: (exePath) => ipcRenderer.invoke("open-game-folder", exePath),
+	selectExe: () => ipcRenderer.invoke("select-exe"),
+	launchGame: (gameName, exePath, launchParams) => ipcRenderer.invoke("launch-game", {
+		gameName,
+		exePath,
+		launchParams
+	}),
+	killGame: (gameName) => ipcRenderer.invoke("kill-game", gameName),
 	startSmartDownload: (url, gameName) => ipcRenderer.send("start-smart-download", url, gameName),
 	pauseDownload: (gid) => ipcRenderer.invoke("pause-download", gid),
 	resumeDownload: (gid) => ipcRenderer.invoke("resume-download", gid),
@@ -30,6 +50,14 @@ contextBridge.exposeInMainWorld("api", {
 	onDownloadStarted: (callback) => {
 		ipcRenderer.removeAllListeners("download-started");
 		ipcRenderer.on("download-started", (event, data) => callback(data));
+	},
+	onGameStarted: (callback) => {
+		ipcRenderer.removeAllListeners("game-started");
+		ipcRenderer.on("game-started", (event, gameName) => callback(gameName));
+	},
+	onGameExited: (callback) => {
+		ipcRenderer.removeAllListeners("game-exited");
+		ipcRenderer.on("game-exited", (event, gameName) => callback(gameName));
 	}
 });
 //#endregion

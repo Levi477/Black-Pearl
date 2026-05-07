@@ -10,10 +10,12 @@ import GameDetail from "./components/library/GameDetail.jsx";
 import DownloadToast from "./components/downloads/DownloadToast.jsx";
 import DownloadsView from "./components/downloads/DownloadsView.jsx";
 import Wishlist from "./components/library/Wishlist.jsx";
+import LibraryView from "./components/library/LibraryView.jsx";
 import ProfileSettings from "./components/profile/ProfileSettings.jsx";
 
 export default function App() {
   const [currentView, setCurrentView] = useState("browse");
+  const [themes, setThemes] = useState(DEFAULT_THEMES);
   const [currentTheme, setCurrentTheme] = useState(DEFAULT_THEMES[0]);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -34,8 +36,10 @@ export default function App() {
     liteMode: false,
   });
   const [wishlist, setWishlist] = useState([]);
+  const [library, setLibrary] = useState([]);
   const [completedDownloads, setCompletedDownloads] = useState([]);
   const [activeDownloads, setActiveDownloads] = useState([]);
+  const [runningGames, setRunningGames] = useState(new Set());
 
   const handleSelectExtension = async (name) => {
     setActiveExt(name);
@@ -69,20 +73,48 @@ export default function App() {
         if (exts.length > 0) handleSelectExtension(exts[0]);
         else setLoading(false);
       });
+
       window.api.getDB().then((db) => {
         setProfile(db.profile);
         setWishlist(db.wishlist);
         setCompletedDownloads(db.completedDownloads);
+        setLibrary(db.library || []);
       });
+
+      window.api.getCustomThemes().then((customThemes) => {
+        if (customThemes && customThemes.length > 0) {
+          setThemes([...DEFAULT_THEMES, ...customThemes]);
+        }
+      });
+
       window.api.onDownloadUpdate((data) => {
         setActiveDownloads(data);
         window.api
           .getDB()
           .then((db) => setCompletedDownloads(db.completedDownloads));
       });
+
       window.api.onDownloadStarted((data) => {
         setToast(`Intercepted! Downloading: ${data.gameName}`);
         setTimeout(() => setToast(null), 5000);
+      });
+
+      // Track game starts from the main process
+      window.api.onGameStarted((gameName) => {
+        setRunningGames((prev) => {
+          const next = new Set(prev);
+          next.add(gameName);
+          return next;
+        });
+      });
+
+      // Track game exits from the main process
+      window.api.onGameExited((gameName) => {
+        setRunningGames((prev) => {
+          const next = new Set(prev);
+          next.delete(gameName);
+          return next;
+        });
       });
     }
   }, []);
@@ -92,10 +124,17 @@ export default function App() {
       (c) => c.gameName === gameName || c.name.includes(gameName),
     );
 
+  const handleRemoveFromLibrary = async (gameName) => {
+    const updated = await window.api.removeFromLibrary(gameName);
+    setLibrary(updated);
+  };
+
   return (
-    <MotionConfig reducedMotion={profile.liteMode ? "always" : "user"}>
+    <MotionConfig transition={profile.liteMode ? { duration: 0 } : undefined}>
       <div
-        className={`flex h-screen w-screen text-white overflow-hidden p-3 gap-3 transition-colors duration-1000 ${currentTheme.class} ${profile.liteMode ? "lite-mode" : ""}`}
+        className={`flex h-screen w-screen text-white overflow-hidden p-3 gap-3 transition-colors duration-1000 ${
+          currentTheme.class
+        } ${profile.liteMode ? "lite-mode" : ""}`}
       >
         <DownloadToast
           toast={toast}
@@ -110,7 +149,7 @@ export default function App() {
           setSidebarOpen={setSidebarOpen}
           currentTheme={currentTheme}
           setCurrentTheme={setCurrentTheme}
-          themes={DEFAULT_THEMES}
+          themes={themes}
           extensions={extensions}
           setExtensions={setExtensions}
           activeExt={activeExt}
@@ -125,7 +164,7 @@ export default function App() {
           profile={profile}
         />
 
-        <div className="flex-1 relative flex flex-col overflow-hidden rounded-3xl bg-black/30 backdrop-blur-[80px] border border-white/10 shadow-2xl">
+        <div className="flex-1 relative flex flex-col overflow-hidden rounded-3xl bg-black/30 backdrop-blur-[40px] border border-white/10 shadow-2xl">
           <TopBar
             sidebarOpen={sidebarOpen}
             setSidebarOpen={setSidebarOpen}
@@ -148,6 +187,19 @@ export default function App() {
                 profile={profile}
                 setProfile={setProfile}
                 currentTheme={currentTheme}
+                setCurrentTheme={setCurrentTheme}
+                themes={themes}
+                setThemes={setThemes}
+                setToast={setToast}
+              />
+            )}
+            {currentView === "library" && (
+              <LibraryView
+                library={library}
+                currentTheme={currentTheme}
+                openGame={(game) => setSelectedGame(game)}
+                onRemove={handleRemoveFromLibrary}
+                runningGames={runningGames}
               />
             )}
             {currentView === "wishlist" && (
@@ -220,6 +272,10 @@ export default function App() {
                 setDetailMenuOpen={setDetailMenuOpen}
                 profile={profile}
                 setCurrentView={setCurrentView}
+                library={library}
+                setLibrary={setLibrary}
+                runningGames={runningGames}
+                setRunningGames={setRunningGames}
               />
             )}
           </AnimatePresence>

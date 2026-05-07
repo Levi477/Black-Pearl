@@ -1,7 +1,7 @@
 {
   "name": "black-pearl",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.6",
   "main": "dist-electron/main.js",
   "repository": {
     "type": "git",
