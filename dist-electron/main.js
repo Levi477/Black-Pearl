@@ -23380,7 +23380,7 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
         if (!document.getElementById('bp-back-btn')) {
           const btn = document.createElement('button');
           btn.id = 'bp-back-btn';
-          btn.innerHTML = '⬅ Go Back (Ad Escaper)';
+          btn.innerHTML = '⬅ Go Back';
           btn.style.cssText = 'position:fixed; bottom:20px; left:20px; z-index:2147483647; padding:12px 20px; background:#ef4444; color:white; border:none; border-radius:8px; font-weight:bold; font-family:sans-serif; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.5); font-size: 14px;';
           btn.onclick = (e) => { e.preventDefault(); window.history.back(); };
           document.body.appendChild(btn);
