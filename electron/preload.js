@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("api", {
   searchGames: (query, page) =>
     ipcRenderer.invoke("search-games", { query, page }),
   getSteamMedia: (gameName) => ipcRenderer.invoke("get-steam-media", gameName),
+getGameDetails: (url) => ipcRenderer.invoke("get-game-details", url),
 
   // Profile & DB
   selectDirectory: () => ipcRenderer.invoke("select-directory"),

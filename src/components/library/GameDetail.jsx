@@ -34,7 +34,6 @@ export default function GameDetail({
   setDetailMenuOpen,
   profile,
   setCurrentView,
-  // Library props
   library,
   setLibrary,
   runningGames,
@@ -43,18 +42,20 @@ export default function GameDetail({
   const [steamData, setSteamData] = useState(null);
   const [steamLoading, setSteamLoading] = useState(true);
   const [launching, setLaunching] = useState(false);
-  
-  // Track parameters locally so typing doesn't feel laggy
+  const [fetchingLinks, setFetchingLinks] = useState(false);
+  const [downloadLinks, setDownloadLinks] = useState(selectedGame.download_links || []);
+
   const [localParams, setLocalParams] = useState("");
   const carouselRef = useRef(null);
 
-  // Derived library state
   const isInLibrary = library.some((g) => g.name === selectedGame.name);
   const libraryEntry = library.find((g) => g.name === selectedGame.name);
   const isRunning = runningGames.has(selectedGame.name);
   const hasExe = !!libraryEntry?.exePath;
+  
+  // FIXED: Only show controls if the download is 100% complete OR an exe is already linked
+  const showControls = isDownloaded(selectedGame.name) || hasExe;
 
-  // Sync params state whenever we open a new game view
   useEffect(() => {
     setLocalParams(libraryEntry?.launchParams || "");
   }, [libraryEntry]);
@@ -67,6 +68,24 @@ export default function GameDetail({
       setSteamLoading(false);
     };
     if (selectedGame) fetchSteam();
+  }, [selectedGame]);
+
+  useEffect(() => {
+    const fetchLinks = async () => {
+      if (selectedGame.url && (!selectedGame.download_links || selectedGame.download_links.length === 0)) {
+        setFetchingLinks(true);
+        const details = await window.api.getGameDetails(selectedGame.url);
+        
+        setDownloadLinks(details.download_links || []);
+        
+        setSelectedGame(prev => ({ ...prev, download_links: details.download_links || [] }));
+        setFetchingLinks(false);
+      } else {
+        setDownloadLinks(selectedGame.download_links || []);
+      }
+    };
+    
+    if (selectedGame) fetchLinks();
   }, [selectedGame]);
 
   const handleToggleWishlist = async () => {
@@ -83,15 +102,17 @@ export default function GameDetail({
 
   const handleDownload = async (link) => {
     window.api.startSmartDownload(link, selectedGame.name);
-    if (!isInLibrary) {
-      const updated = await window.api.addToLibrary(selectedGame);
-      setLibrary(updated);
-    }
+    // FIXED: Removed addToLibrary here. It will not show in your library
+    // until it successfully downloads or you manually choose a launcher.
   };
 
   const handleChooseLauncher = async () => {
     const exePath = await window.api.selectExe();
     if (exePath) {
+      // FIXED: Ensure it is added to the library database before setting the exe path
+      if (!isInLibrary) {
+        await window.api.addToLibrary(selectedGame);
+      }
       const updated = await window.api.setGameExe(selectedGame.name, exePath);
       setLibrary(updated);
     }
@@ -426,7 +447,8 @@ export default function GameDetail({
           </div>
 
           <div className="w-[450px] shrink-0 flex flex-col gap-4">
-            {isInLibrary && (
+            {/* FIXED: Swapped 'isInLibrary' to 'showControls' so it stays hidden until required */}
+            {showControls && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -524,7 +546,6 @@ export default function GameDetail({
                     </div>
                   )}
 
-                  {/* Exe path and Parameters display */}
                   {hasExe && (
                     <div className="mt-1 flex flex-col gap-2 p-3 bg-black/40 rounded-xl border border-white/5">
                       <div>
@@ -566,32 +587,41 @@ export default function GameDetail({
               <div
                 className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${currentTheme.textGradient}`}
               />
-              <h3
+<h3
                 className={`text-xl font-black mb-6 flex items-center gap-3 uppercase tracking-widest bg-clip-text text-transparent bg-gradient-to-r ${currentTheme.textGradient}`}
               >
-                <Download className={currentTheme.iconColor} size={24} /> Direct
-                Links
+                <Download className={currentTheme.iconColor} size={24} /> Direct Links
               </h3>
               <div className="flex flex-col gap-3">
-                {selectedGame.download_links.map((link, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleDownload(link)}
-                    className="group flex items-center justify-between bg-black/60 border border-white/5 p-4 rounded-xl hover:bg-white/10 transition-all shadow-md hover:shadow-xl text-left"
-                  >
-                    <span className="truncate text-[15px] font-bold text-gray-200 group-hover:text-white transition-colors">
-                      {new URL(link).hostname}
-                    </span>
-                    <div
-                      className={`bg-white/5 border border-white/5 p-2.5 rounded-xl group-hover:${currentTheme.activeBg} transition-colors`}
+                {fetchingLinks ? (
+                  <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl text-gray-400 font-bold uppercase tracking-widest text-sm border border-white/5">
+                    <Loader2 size={18} className="animate-spin" /> Scraping Host Links...
+                  </div>
+                ) : downloadLinks.length === 0 ? (
+                  <div className="p-4 bg-white/5 rounded-xl text-gray-500 font-bold uppercase tracking-widest text-xs border border-white/5 text-center">
+                    No Direct Links Found
+                  </div>
+                ) : (
+                  downloadLinks.map((link, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleDownload(link)}
+                      className="group flex items-center justify-between bg-black/60 border border-white/5 p-4 rounded-xl hover:bg-white/10 transition-all shadow-md hover:shadow-xl text-left"
                     >
-                      <Download
-                        size={18}
-                        className="text-gray-400 group-hover:text-white"
-                      />
-                    </div>
-                  </button>
-                ))}
+                      <span className="truncate text-[15px] font-bold text-gray-200 group-hover:text-white transition-colors">
+                        {new URL(link).hostname}
+                      </span>
+                      <div
+                        className={`bg-white/5 border border-white/5 p-2.5 rounded-xl group-hover:${currentTheme.activeBg} transition-colors`}
+                      >
+                        <Download
+                          size={18}
+                          className="text-gray-400 group-hover:text-white"
+                        />
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </div>

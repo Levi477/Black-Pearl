@@ -5,7 +5,6 @@ const { getDB } = require("./database");
 
 const activeGameProcesses = new Map();
 
-// Pass getMainWindow as a callback to always interact with the active window
 function setupLauncherIPC(ipcMain, getMainWindow) {
   ipcMain.handle("open-game-folder", async (e, exePath) => {
     const folderPath = exePath

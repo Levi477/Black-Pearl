@@ -10,14 +10,19 @@ export default defineConfig({
     tailwindcss(),
     electron([
       {
-        // Tells Vite exactly where your main.js lives
         entry: "electron/main.js",
+        vite: {
+          build: {
+            minify: false,
+            rollupOptions: {
+              external: ["axios", "cheerio"], 
+            },
+          },
+        },
       },
       {
-        // Tells Vite exactly where your preload lives
         entry: "electron/preload.js",
         onstart(options) {
-          // Hot-reloads the Electron window if you change preload.js
           options.reload();
         },
       },

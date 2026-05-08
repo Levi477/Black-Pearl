@@ -5,6 +5,7 @@ const fs = require("fs");
 const net = require("net"); 
 const Aria2 = require("aria2").default || require("aria2");
 const { getDB, saveDB } = require("./database");
+const { scrapeDirectLink } = require("./scrapers/manager");
 
 let aria2Process;
 let aria2; 
@@ -77,9 +78,6 @@ async function startAria2() {
       { stdio: ["ignore", "pipe", "pipe"] },
     );
 
-    aria2Process.stdout.on("data", (d) =>
-      console.log("[ARIA2]", d.toString().trim()),
-    );
     aria2Process.stderr.on("data", (d) =>
       console.error("[ARIA2 ERR]", d.toString().trim()),
     );
@@ -182,64 +180,117 @@ function setupAria2IPC(ipcMain, getAdBlocker) {
     }
   });
 
-  ipcMain.on("start-smart-download", (event, hostUrl, gameName) => {
+ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
+    const db = getDB();
+
+    const scrapeResult = await scrapeDirectLink(hostUrl);
+    if (scrapeResult) {
+      let targetUrl = "";
+      let customHeaders = [];
+
+      if (typeof scrapeResult === "string") {
+        targetUrl = scrapeResult;
+      } else if (typeof scrapeResult === "object" && scrapeResult.url) {
+        targetUrl = scrapeResult.url;
+        customHeaders = scrapeResult.headers || [];
+      }
+      
+      console.log("[Scraper] Success! Sending to Aria2:", targetUrl);
+      
+      const fileName = targetUrl.split("?")[0].split("/").pop() || "game_download";
+      
+      try {
+        const ariaOptions = {
+          dir: db.profile.downloadPath || app.getPath("downloads"),
+          out: `[BlackPearl] ${fileName}`,
+        };
+        
+        if (customHeaders.length > 0) {
+          ariaOptions.header = customHeaders;
+        }
+
+        const gid = await aria2.call("addUri", [targetUrl], ariaOptions);
+        
+        activeGameMap.set(gid, gameName);
+        event.sender.send("download-started", { gameName, fileName });
+        return; 
+      } catch (err) {
+        console.error("[ARIA2] Direct download failed, falling back to window.");
+      }
+    }
+
+    console.log("[Scraper] Failed or unsupported. Opening Stealth Window.");
     const dlSession = session.fromPartition("persist:stealth_downloads");
     const adBlocker = getAdBlocker();
     if (adBlocker) adBlocker.enableBlockingInSession(dlSession);
 
+    const realUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    dlSession.setUserAgent(realUA);
+
     let downloadWin = new BrowserWindow({
-      width: 1000,
-      height: 700,
+      width: 1100,
+      height: 750,
       show: true,
-      title: "Black Pearl - Please click 'Download' when ready...",
-      webPreferences: { nodeIntegration: false, session: dlSession },
+      title: "Black Pearl - Please solve captcha or click Download...",
+      webPreferences: { nodeIntegration: false, contextIsolation: true, session: dlSession },
     });
-    downloadWin.webContents.setWindowOpenHandler(({ url }) => {
-      downloadWin.loadURL(url);
-      return { action: "deny" };
+
+    downloadWin.webContents.setWindowOpenHandler(() => {
+      return { action: "deny" }; 
+    });
+
+    downloadWin.webContents.on('did-finish-load', () => {
+      const injectedUI = `
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        if (!document.getElementById('bp-back-btn')) {
+          const btn = document.createElement('button');
+          btn.id = 'bp-back-btn';
+          btn.innerHTML = '⬅ Go Back';
+          btn.style.cssText = 'position:fixed; bottom:20px; left:20px; z-index:2147483647; padding:12px 20px; background:#ef4444; color:white; border:none; border-radius:8px; font-weight:bold; font-family:sans-serif; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.5); font-size: 14px;';
+          btn.onclick = (e) => { e.preventDefault(); window.history.back(); };
+          document.body.appendChild(btn);
+        }
+      `;
+      downloadWin.webContents.executeJavaScript(injectedUI).catch(()=>{});
     });
 
     let hasIntercepted = false;
     dlSession.on("will-download", async (e, item) => {
-      if (hasIntercepted) {
-        e.preventDefault();
-        return;
-      }
+      if (hasIntercepted) { e.preventDefault(); return; }
       hasIntercepted = true;
       e.preventDefault();
       if (downloadWin.isDestroyed()) return;
 
-      const directUrl = item.getURLChain().pop();
-      const fileName = item.getFilename();
-      const ua = downloadWin.webContents.getUserAgent();
+      const directUrlItem = item.getURLChain().pop();
+      const downloadedFileName = item.getFilename();
 
       try {
         const cookies = await dlSession.cookies.get({});
-        const db = getDB();
+        const exactReferer = downloadWin.webContents.getURL();
         
-        // Use dynamically initialized aria2 client
-        const gid = await aria2.call("addUri", [directUrl], {
+        const gid = await aria2.call("addUri", [directUrlItem], {
           header: [
             `Cookie: ${cookies.map((c) => `${c.name}=${c.value}`).join("; ")}`,
-            `User-Agent: ${ua}`,
-            `Referer: ${hostUrl}`,
+            `User-Agent: ${realUA}`,
+            `Referer: ${exactReferer}`,
           ],
           dir: db.profile.downloadPath || app.getPath("downloads"),
-          out: `[BlackPearl] ${fileName}`,
+          out: `[BlackPearl] ${downloadedFileName}`,
         });
         activeGameMap.set(gid, gameName);
-        event.sender.send("download-started", { gameName, fileName });
+        event.sender.send("download-started", { gameName, fileName: downloadedFileName });
       } catch (err) {
         console.error(err);
       } finally {
         if (!downloadWin.isDestroyed()) downloadWin.close();
       }
     });
-    downloadWin.loadURL(hostUrl);
-  });
-}
 
-function killAria2() {
+    downloadWin.loadURL(hostUrl);
+  });  
+}
+  
+  function killAria2() {
   if (aria2Process) aria2Process.kill();
 }
 

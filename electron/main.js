@@ -64,7 +64,15 @@ app.whenReady().then(async () => {
       });
     }
   });
-  ElectronBlocker.fromPrebuiltAdsAndTracking(fetch)
+  ElectronBlocker.fromLists(fetch, [
+      "https://easylist.to/easylist/easylist.txt",
+      "https://easylist.to/easylist/easyprivacy.txt",
+      "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters.txt",
+      "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/badware.txt",
+      "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/privacy.txt",
+      "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/quick-fixes.txt",
+      "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=1&mimetype=plaintext"
+    ])
     .then((b) => {
       adBlocker = b;
       console.log("[App] AdBlocker ready");

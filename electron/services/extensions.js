@@ -12,7 +12,6 @@ function loadExtensions() {
   if (!fs.existsSync(userExtPath))
     fs.mkdirSync(userExtPath, { recursive: true });
     
-  // Note: Adjusting path logic slightly since we are deep inside "services" folder
   const builtinExtPath = app.isPackaged
     ? path.join(process.resourcesPath, "extensions")
     : path.join(__dirname, "../../extensions");
@@ -37,6 +36,14 @@ function loadExtensions() {
 }
 
 function setupExtensionsIPC(ipcMain) {
+
+  ipcMain.handle("get-game-details", async (e, url) => {
+    if (activeExt && activeExt.get_game_details) {
+      return await activeExt.get_game_details(url);
+    }
+    return { download_links: [] };
+  });
+
   const getCacheKey = (type, param, page) =>
     `${activeExt?.name}_${type}_${param}_${page}`;
 

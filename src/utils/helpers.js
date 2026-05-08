@@ -1,4 +1,3 @@
-// Provides functions like byte formatting
 export const formatBytes = (bytes) => {
   if (!+bytes) return "0 Bytes";
   const k = 1024,
