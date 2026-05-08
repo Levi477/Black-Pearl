@@ -42,9 +42,8 @@ export default function GameDetail({
   const [steamData, setSteamData] = useState(null);
   const [steamLoading, setSteamLoading] = useState(true);
   const [launching, setLaunching] = useState(false);
-  const [fetchingLinks, setFetchingLinks] = useState(false);
-  const [downloadLinks, setDownloadLinks] = useState(selectedGame.download_links || []);
-
+  
+  
   const [localParams, setLocalParams] = useState("");
   const carouselRef = useRef(null);
 
