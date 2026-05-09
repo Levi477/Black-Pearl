@@ -1,6 +1,5 @@
-// Displays individual game metadata, poster artwork, and the play and download actions.
 import { motion } from "framer-motion";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 
 export default function GameCard({
   game,
@@ -26,6 +25,12 @@ export default function GameCard({
           alt={game.name}
         />
 
+        {game.tag && typeof game.tag === 'string' && game.tag.trim() !== '' && (
+          <div className="absolute top-2 left-2 z-30 bg-red-600 text-white font-black px-2 py-0.5 rounded shadow-lg shadow-red-900/50 uppercase tracking-widest text-[10px]">
+            {game.tag}
+          </div>
+        )}
+
         {isDownloadedStatus && (
           <div className="absolute bottom-3 left-3 z-20 bg-green-500/90 backdrop-blur-md text-white text-[10px] font-black tracking-widest px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg border border-white/20">
             <CheckCircle size={14} /> DOWNLOADED
@@ -33,45 +38,40 @@ export default function GameCard({
         )}
 
         {activeDl ? (
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] flex items-center justify-center z-10 transition-all">
-            <div className="relative flex items-center justify-center">
-              <svg className="w-16 h-16 transform -rotate-90">
-                <circle
-                  cx="32"
-                  cy="32"
-                  r="28"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="transparent"
-                  className="text-black"
-                />
-                <circle
-                  cx="32"
-                  cy="32"
-                  r="28"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="transparent"
-                  strokeDasharray="175.9"
-                  strokeDashoffset={175.9 - (175.9 * activeDlProgress) / 100}
-                  className={`transition-all duration-500 ${currentTheme.stroke}`}
-                />
-              </svg>
-              <span className="absolute text-xs font-black text-white">
-                {Math.round(activeDlProgress)}%
-              </span>
-            </div>
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-[4px] flex items-center justify-center z-10 transition-all">
+            {activeDlProgress === 0 ? (
+              <div className="flex flex-col items-center justify-center">
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
+                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest animate-pulse text-center px-2">
+                  Preparing<br />Download...
+                </span>
+              </div>
+            ) : (
+              <div className="relative flex items-center justify-center">
+                <svg className="w-16 h-16 transform -rotate-90">
+                  <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-black" />
+                  <circle
+                    cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent"
+                    strokeDasharray="175.9"
+                    strokeDashoffset={175.9 - (175.9 * activeDlProgress) / 100}
+                    className={`transition-all duration-500 ${currentTheme.stroke}`}
+                  />
+                </svg>
+                <span className="absolute text-xs font-black text-white">
+                  {Math.round(activeDlProgress)}%
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-            <span
-              className={`text-xs font-bold text-white px-3 py-1.5 rounded-lg shadow-lg bg-gradient-to-r ${currentTheme.textGradient}`}
-            >
+            <span className={`text-xs font-bold text-white px-3 py-1.5 rounded-lg shadow-lg bg-gradient-to-r ${currentTheme.textGradient}`}>
               VIEW DETAILS
             </span>
           </div>
         )}
       </div>
+      
       <h3 className="font-semibold text-sm text-gray-200 group-hover:text-white transition-colors line-clamp-2 px-1">
         {game.name}
       </h3>

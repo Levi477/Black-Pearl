@@ -1,5 +1,5 @@
 require('v8-compile-cache');
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog,shell } = require("electron");
 const path = require("path");
 const fetch = require("cross-fetch");
 const { ElectronBlocker } = require("@cliqz/adblocker-electron");
@@ -80,6 +80,8 @@ app.whenReady().then(async () => {
     .catch((e) => console.error("[App] AdBlocker failed:", e));
 });
 
+
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -113,6 +115,9 @@ ipcMain.handle("select-directory", async () => {
   return r.canceled ? null : r.filePaths[0];
 });
 
+ipcMain.on("open-external", (event, url) => {
+  shell.openExternal(url);
+});
 ipcMain.on("window-minimize", () => mainWindow.minimize());
 ipcMain.on("window-maximize", () => {
   if (mainWindow.isMaximized()) {
@@ -122,3 +127,19 @@ ipcMain.on("window-maximize", () => {
   }
 });
 ipcMain.on("window-close", () => mainWindow.close());
+
+ipcMain.handle("check-part-exists", (e, url) => {
+  try {
+    const { getDB } = require("./services/database");
+    const db = getDB();
+    const rawName = url.split("?")[0].split("/").pop();
+    if (!rawName) return false;
+    
+    const fileName = rawName.startsWith("[BlackPearl]") ? rawName : `[BlackPearl] ${rawName}`;
+    const dlPath = db.profile?.downloadPath || app.getPath("downloads");
+    
+    return fs.existsSync(path.join(dlPath, fileName));
+  } catch (err) {
+    return false;
+  }
+});

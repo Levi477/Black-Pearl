@@ -46,7 +46,7 @@ zlib = __toESM(zlib, 1);
 var require_v8_compile_cache = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var Module$1 = require("module");
 	var crypto$1 = require("crypto");
-	var fs$4 = require("fs");
+	var fs$5 = require("fs");
 	var path$5 = require("path");
 	var vm = require("vm");
 	var os = require("os");
@@ -101,22 +101,22 @@ var require_v8_compile_cache = /* @__PURE__ */ __commonJSMin(((exports, module) 
 			const mapToStore = JSON.stringify(dump[1]);
 			try {
 				mkdirpSync(this._directory);
-				fs$4.writeFileSync(this._lockFilename, "LOCK", { flag: "wx" });
+				fs$5.writeFileSync(this._lockFilename, "LOCK", { flag: "wx" });
 			} catch (error) {
 				return false;
 			}
 			try {
-				fs$4.writeFileSync(this._blobFilename, blobToStore);
-				fs$4.writeFileSync(this._mapFilename, mapToStore);
+				fs$5.writeFileSync(this._blobFilename, blobToStore);
+				fs$5.writeFileSync(this._mapFilename, mapToStore);
 			} finally {
-				fs$4.unlinkSync(this._lockFilename);
+				fs$5.unlinkSync(this._lockFilename);
 			}
 			return true;
 		}
 		_load() {
 			try {
-				this._storedBlob = fs$4.readFileSync(this._blobFilename);
-				this._storedMap = JSON.parse(fs$4.readFileSync(this._mapFilename));
+				this._storedBlob = fs$5.readFileSync(this._blobFilename);
+				this._storedMap = JSON.parse(fs$5.readFileSync(this._mapFilename));
 			} catch (e) {
 				this._storedBlob = Buffer.alloc(0);
 				this._storedMap = {};
@@ -236,13 +236,13 @@ var require_v8_compile_cache = /* @__PURE__ */ __commonJSMin(((exports, module) 
 	}
 	function _mkdirpSync(p, mode) {
 		try {
-			fs$4.mkdirSync(p, mode);
+			fs$5.mkdirSync(p, mode);
 		} catch (err0) {
 			if (err0.code === "ENOENT") {
 				_mkdirpSync(path$5.dirname(p));
 				_mkdirpSync(p);
 			} else try {
-				if (!fs$4.statSync(p).isDirectory()) throw err0;
+				if (!fs$5.statSync(p).isDirectory()) throw err0;
 			} catch (err1) {
 				throw err0;
 			}
@@ -22298,7 +22298,7 @@ var require_commonjs = /* @__PURE__ */ __commonJSMin(((exports) => {
 //#region electron/services/database.js
 var require_database = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var { app: app$5 } = require("electron");
-	var fs$3 = require("fs");
+	var fs$4 = require("fs");
 	var dbPath = require("path").join(app$5.getPath("userData"), "blackpearl_db.json");
 	function getDB() {
 		const defaults = {
@@ -22312,12 +22312,12 @@ var require_database = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			completedDownloads: [],
 			library: []
 		};
-		if (!fs$3.existsSync(dbPath)) {
-			fs$3.writeFileSync(dbPath, JSON.stringify(defaults));
+		if (!fs$4.existsSync(dbPath)) {
+			fs$4.writeFileSync(dbPath, JSON.stringify(defaults));
 			return defaults;
 		}
 		try {
-			const data = JSON.parse(fs$3.readFileSync(dbPath));
+			const data = JSON.parse(fs$4.readFileSync(dbPath));
 			if (!data.library) data.library = [];
 			return data;
 		} catch (e) {
@@ -22325,7 +22325,7 @@ var require_database = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 	}
 	function saveDB(data) {
-		fs$3.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+		fs$4.writeFileSync(dbPath, JSON.stringify(data, null, 2));
 	}
 	function setupDatabaseIPC(ipcMain) {
 		ipcMain.handle("get-db", () => getDB());
@@ -22397,7 +22397,7 @@ var require_database = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#region electron/services/steam.js
 var require_steam = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var { app: app$4 } = require("electron");
-	var fs$2 = require("fs");
+	var fs$3 = require("fs");
 	var path$4 = require("path");
 	var axios$9 = require("axios");
 	var steamCache = /* @__PURE__ */ new Map();
@@ -22405,8 +22405,8 @@ var require_steam = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	function loadSteamCache() {
 		try {
 			steamCachePath = path$4.join(app$4.getPath("userData"), "steam_cache.json");
-			if (fs$2.existsSync(steamCachePath)) {
-				const data = JSON.parse(fs$2.readFileSync(steamCachePath, "utf8"));
+			if (fs$3.existsSync(steamCachePath)) {
+				const data = JSON.parse(fs$3.readFileSync(steamCachePath, "utf8"));
 				let count = 0;
 				Object.entries(data).forEach(([k, v]) => {
 					steamCache.set(k, v);
@@ -22422,7 +22422,7 @@ var require_steam = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (!steamCachePath) return;
 		try {
 			const obj = Object.fromEntries(steamCache);
-			fs$2.writeFileSync(steamCachePath, JSON.stringify(obj));
+			fs$3.writeFileSync(steamCachePath, JSON.stringify(obj));
 		} catch (e) {
 			console.error("[SteamCache] Save error:", e.message);
 		}
@@ -22431,7 +22431,7 @@ var require_steam = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		ipcMain.handle("get-steam-media", async (e, gameName) => {
 			if (steamCache.has(gameName)) return steamCache.get(gameName);
 			try {
-				const res = await axios$9.get(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName.split("Free Download")[0].trim())}&l=english&cc=US`);
+				const res = await axios$9.get(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`);
 				if (!res.data.items?.length) return null;
 				const data = (await axios$9.get(`https://store.steampowered.com/api/appdetails?appids=${res.data.items[0].id}`)).data[res.data.items[0].id].data;
 				steamCache.set(gameName, data);
@@ -22451,7 +22451,7 @@ var require_steam = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#region electron/services/extensions.js
 var require_extensions = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var { app: app$3 } = require("electron");
-	var fs$1 = require("fs");
+	var fs$2 = require("fs");
 	var path$3 = require("path");
 	var axios$8 = require("axios");
 	var extensions = {};
@@ -22459,11 +22459,11 @@ var require_extensions = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var pageCache = /* @__PURE__ */ new Map();
 	function loadExtensions() {
 		const userExtPath = path$3.join(app$3.getPath("userData"), "extensions");
-		if (!fs$1.existsSync(userExtPath)) fs$1.mkdirSync(userExtPath, { recursive: true });
+		if (!fs$2.existsSync(userExtPath)) fs$2.mkdirSync(userExtPath, { recursive: true });
 		const builtinExtPath = app$3.isPackaged ? path$3.join(process.resourcesPath, "extensions") : path$3.join(__dirname, "../../extensions");
 		const loadFolder = (folderPath) => {
-			if (!fs$1.existsSync(folderPath)) return;
-			for (const file of fs$1.readdirSync(folderPath)) if (file.endsWith(".js")) try {
+			if (!fs$2.existsSync(folderPath)) return;
+			for (const file of fs$2.readdirSync(folderPath)) if (file.endsWith(".js")) try {
 				const filePath = path$3.join(folderPath, file);
 				delete require.cache[require.resolve(filePath)];
 				const ext = require(filePath);
@@ -22515,7 +22515,7 @@ var require_extensions = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			try {
 				const res = await axios$8.get(url, { responseType: "text" });
 				if (!res.data.includes("module.exports")) throw new Error("Invalid extension.");
-				fs$1.writeFileSync(path$3.join(userExtPath, url.split("/").pop().split("?")[0] || `ext_${Date.now()}.js`), res.data);
+				fs$2.writeFileSync(path$3.join(userExtPath, url.split("/").pop().split("?")[0] || `ext_${Date.now()}.js`), res.data);
 				loadExtensions();
 				return { success: true };
 			} catch (error) {
@@ -22534,7 +22534,7 @@ var require_extensions = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region electron/services/launcher.js
 var require_launcher = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var { app: app$2, shell, dialog: dialog$1 } = require("electron");
+	var { app: app$2, shell: shell$1, dialog: dialog$1 } = require("electron");
 	var { spawn: spawn$1 } = require("child_process");
 	var path$2 = require("path");
 	var { getDB } = require_database();
@@ -22542,7 +22542,7 @@ var require_launcher = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	function setupLauncherIPC(ipcMain, getMainWindow) {
 		ipcMain.handle("open-game-folder", async (e, exePath) => {
 			const folderPath = exePath ? path$2.dirname(exePath) : getDB().profile.downloadPath || app$2.getPath("downloads");
-			return !await shell.openPath(folderPath);
+			return !await shell$1.openPath(folderPath);
 		});
 		ipcMain.handle("select-exe", async () => {
 			const isWin = process.platform === "win32";
@@ -23160,25 +23160,33 @@ var require_pixeldrain = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region electron/services/scrapers/manager.js
 var require_manager = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var gofile = require_gofile();
+	var mediafire = require_mediafire();
+	var googleDrive = require_googleDrive();
+	var buzzheavier = require_buzzheavier();
+	require_datanodes();
+	require_fuckingfast();
+	require_googledrive();
 	var providers = [
-		require_gofile(),
-		require_mediafire(),
-		require_googleDrive(),
-		require_buzzheavier(),
-		require_datanodes(),
-		require_fuckingfast(),
-		require_googledrive(),
+		gofile,
+		mediafire,
+		googleDrive,
+		buzzheavier,
 		require_pixeldrain()
 	];
 	async function scrapeDirectLink(url) {
 		console.log(`[Scraper] Attempting to scrape direct link from: ${url}`);
+		if (typeof url === "string" && (url.startsWith("magnet:") || url.endsWith(".torrent"))) {
+			console.log(`[Scraper] Magnet/Torrent link detected! Bypassing scrapers.`);
+			return url;
+		}
 		for (const provider of providers) if (provider.canHandle(url)) {
 			console.log(`[Scraper] Routing to ${provider.name}...`);
 			try {
 				const link = await provider.extract(url);
 				if (link) return link;
 			} catch (e) {
-				console.error(`[Scraper] ${provider.name} failed.`);
+				console.error(`[Scraper] ${provider.name} failed:`, e.message);
 			}
 		}
 		return null;
@@ -23191,7 +23199,7 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var { app: app$1, BrowserWindow: BrowserWindow$1, session } = require("electron");
 	var { spawn } = require("child_process");
 	var path$1 = require("path");
-	var fs = require("fs");
+	var fs$1 = require("fs");
 	var net = require("net");
 	var Aria2 = (init_Aria2(), __toCommonJS(Aria2_exports)).default || (init_Aria2(), __toCommonJS(Aria2_exports));
 	var { getDB, saveDB } = require_database();
@@ -23221,7 +23229,7 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	async function startAria2() {
 		const binaryName = process.platform === "darwin" ? "aria2c" : process.platform === "linux" ? "aria2c-linux" : "aria2c.exe";
 		const ariaPath = app$1.isPackaged ? path$1.join(process.resourcesPath, binaryName) : path$1.join(app$1.getAppPath(), binaryName);
-		if (!fs.existsSync(ariaPath)) {
+		if (!fs$1.existsSync(ariaPath)) {
 			console.error("ARIA2 BINARY NOT FOUND at:", ariaPath);
 			return false;
 		}
@@ -23316,9 +23324,9 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				const status = await aria2.call("tellStatus", gid);
 				await aria2.call("forceRemove", gid);
 				if (status && status.files) status.files.forEach((f) => {
-					if (f.path && fs.existsSync(f.path)) fs.unlinkSync(f.path);
+					if (f.path && fs$1.existsSync(f.path)) fs$1.unlinkSync(f.path);
 					const ariaFile = f.path + ".aria2";
-					if (fs.existsSync(ariaFile)) fs.unlinkSync(ariaFile);
+					if (fs$1.existsSync(ariaFile)) fs$1.unlinkSync(ariaFile);
 				});
 			} catch (err) {
 				console.error("Cancel Error:", err);
@@ -23326,56 +23334,80 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		});
 		ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
 			const db = getDB();
-			const scrapeResult = await scrapeDirectLink(hostUrl);
-			if (scrapeResult) {
-				let targetUrl = "";
-				let customHeaders = [];
-				if (typeof scrapeResult === "string") targetUrl = scrapeResult;
-				else if (typeof scrapeResult === "object" && scrapeResult.url) {
-					targetUrl = scrapeResult.url;
-					customHeaders = scrapeResult.headers || [];
+			const urls = Array.isArray(hostUrl) ? hostUrl : [hostUrl];
+			for (const currentUrl of urls) {
+				if (currentUrl.startsWith("magnet:")) {
+					try {
+						const gid = await aria2.call("addUri", [currentUrl], { dir: db.profile.downloadPath || app$1.getPath("downloads") });
+						activeGameMap.set(gid, gameName);
+						event.sender.send("download-started", {
+							gameName,
+							fileName: "Torrent Download"
+						});
+					} catch (e) {
+						console.error("Magnet error:", e);
+					}
+					continue;
 				}
-				console.log("[Scraper] Success! Sending to Aria2:", targetUrl);
-				const fileName = targetUrl.split("?")[0].split("/").pop() || "game_download";
-				try {
-					const ariaOptions = {
-						dir: db.profile.downloadPath || app$1.getPath("downloads"),
-						out: `[BlackPearl] ${fileName}`
-					};
-					if (customHeaders.length > 0) ariaOptions.header = customHeaders;
-					const gid = await aria2.call("addUri", [targetUrl], ariaOptions);
-					activeGameMap.set(gid, gameName);
-					event.sender.send("download-started", {
-						gameName,
-						fileName
-					});
-					return;
-				} catch (err) {
-					console.error("[ARIA2] Direct download failed, falling back to window.");
+				const scrapeResult = await scrapeDirectLink(currentUrl);
+				if (scrapeResult) {
+					let targetUrl = "";
+					let customHeaders = [];
+					if (typeof scrapeResult === "string") targetUrl = scrapeResult;
+					else if (typeof scrapeResult === "object" && scrapeResult.url) {
+						targetUrl = scrapeResult.url;
+						customHeaders = scrapeResult.headers || [];
+					}
+					console.log("[Scraper] Success! Sending to Aria2:", targetUrl);
+					const fileName = targetUrl.split("?")[0].split("/").pop() || "game_download";
+					try {
+						const ariaOptions = {
+							dir: db.profile.downloadPath || app$1.getPath("downloads"),
+							out: `[BlackPearl] ${fileName}`
+						};
+						if (customHeaders.length > 0) ariaOptions.header = customHeaders;
+						const gid = await aria2.call("addUri", [targetUrl], ariaOptions);
+						activeGameMap.set(gid, gameName);
+						event.sender.send("download-started", {
+							gameName,
+							fileName
+						});
+						continue;
+					} catch (err) {
+						console.error("[ARIA2] Direct download failed, falling back to window.");
+					}
 				}
-			}
-			console.log("[Scraper] Failed or unsupported. Opening Stealth Window.");
-			const dlSession = session.fromPartition("persist:stealth_downloads");
-			const adBlocker = getAdBlocker();
-			if (adBlocker) adBlocker.enableBlockingInSession(dlSession);
-			const realUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-			dlSession.setUserAgent(realUA);
-			let downloadWin = new BrowserWindow$1({
-				width: 1100,
-				height: 750,
-				show: true,
-				title: "Black Pearl - Please solve captcha or click Download...",
-				webPreferences: {
-					nodeIntegration: false,
-					contextIsolation: true,
-					session: dlSession
-				}
-			});
-			downloadWin.webContents.setWindowOpenHandler(() => {
-				return { action: "deny" };
-			});
-			downloadWin.webContents.on("did-finish-load", () => {
-				downloadWin.webContents.executeJavaScript(`
+				console.log("[Scraper] Failed or unsupported. Opening Stealth Window.");
+				const uniqueSessionId = `stealth_${Date.now()}_${Math.random()}`;
+				const dlSession = session.fromPartition(uniqueSessionId);
+				const adBlocker = getAdBlocker();
+				if (adBlocker) adBlocker.enableBlockingInSession(dlSession);
+				const realUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+				dlSession.setUserAgent(realUA);
+				let downloadWin = new BrowserWindow$1({
+					width: 1100,
+					height: 750,
+					show: true,
+					title: "Black Pearl - Please solve captcha or click Download...",
+					webPreferences: {
+						nodeIntegration: false,
+						contextIsolation: true,
+						session: dlSession,
+						disableBlinkFeatures: "AutomationControlled"
+					}
+				});
+				downloadWin.webContents.setWindowOpenHandler(() => {
+					return { action: "deny" };
+				});
+				downloadWin.webContents.on("did-start-navigation", () => {
+					downloadWin.webContents.executeJavaScript(`
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] }); // Fake having browser plugins
+    `).catch(() => {});
+				});
+				downloadWin.webContents.on("did-finish-load", () => {
+					downloadWin.webContents.executeJavaScript(`
         Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
         if (!document.getElementById('bp-back-btn')) {
           const btn = document.createElement('button');
@@ -23386,42 +23418,43 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
           document.body.appendChild(btn);
         }
       `).catch(() => {});
-			});
-			let hasIntercepted = false;
-			dlSession.on("will-download", async (e, item) => {
-				if (hasIntercepted) {
+				});
+				let hasIntercepted = false;
+				dlSession.on("will-download", async (e, item) => {
+					if (hasIntercepted) {
+						e.preventDefault();
+						return;
+					}
+					hasIntercepted = true;
 					e.preventDefault();
-					return;
-				}
-				hasIntercepted = true;
-				e.preventDefault();
-				if (downloadWin.isDestroyed()) return;
-				const directUrlItem = item.getURLChain().pop();
-				const downloadedFileName = item.getFilename();
-				try {
-					const cookies = await dlSession.cookies.get({});
-					const exactReferer = downloadWin.webContents.getURL();
-					const gid = await aria2.call("addUri", [directUrlItem], {
-						header: [
-							`Cookie: ${cookies.map((c) => `${c.name}=${c.value}`).join("; ")}`,
-							`User-Agent: ${realUA}`,
-							`Referer: ${exactReferer}`
-						],
-						dir: db.profile.downloadPath || app$1.getPath("downloads"),
-						out: `[BlackPearl] ${downloadedFileName}`
-					});
-					activeGameMap.set(gid, gameName);
-					event.sender.send("download-started", {
-						gameName,
-						fileName: downloadedFileName
-					});
-				} catch (err) {
-					console.error(err);
-				} finally {
-					if (!downloadWin.isDestroyed()) downloadWin.close();
-				}
-			});
-			downloadWin.loadURL(hostUrl);
+					if (downloadWin.isDestroyed()) return;
+					const directUrlItem = item.getURLChain().pop();
+					const downloadedFileName = item.getFilename();
+					try {
+						const cookies = await dlSession.cookies.get({});
+						const exactReferer = downloadWin.webContents.getURL();
+						const gid = await aria2.call("addUri", [directUrlItem], {
+							header: [
+								`Cookie: ${cookies.map((c) => `${c.name}=${c.value}`).join("; ")}`,
+								`User-Agent: ${realUA}`,
+								`Referer: ${exactReferer}`
+							],
+							dir: db.profile.downloadPath || app$1.getPath("downloads"),
+							out: `[BlackPearl] ${downloadedFileName}`
+						});
+						activeGameMap.set(gid, gameName);
+						event.sender.send("download-started", {
+							gameName,
+							fileName: downloadedFileName
+						});
+					} catch (err) {
+						console.error(err);
+					} finally {
+						if (!downloadWin.isDestroyed()) downloadWin.close();
+					}
+				});
+				downloadWin.loadURL(currentUrl);
+			}
 		});
 	}
 	function killAria2() {
@@ -23438,7 +23471,7 @@ var require_aria2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region electron/main.js
 require_v8_compile_cache();
-var { app, BrowserWindow, ipcMain, dialog } = require("electron");
+var { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 var path = require("path");
 var fetch$1 = require_node_ponyfill();
 var { ElectronBlocker } = require_commonjs();
@@ -23520,10 +23553,26 @@ ipcMain.handle("select-directory", async () => {
 	const r = await dialog.showOpenDialog(mainWindow, { properties: ["openDirectory"] });
 	return r.canceled ? null : r.filePaths[0];
 });
+ipcMain.on("open-external", (event, url) => {
+	shell.openExternal(url);
+});
 ipcMain.on("window-minimize", () => mainWindow.minimize());
 ipcMain.on("window-maximize", () => {
 	if (mainWindow.isMaximized()) mainWindow.unmaximize();
 	else mainWindow.maximize();
 });
 ipcMain.on("window-close", () => mainWindow.close());
+ipcMain.handle("check-part-exists", (e, url) => {
+	try {
+		const { getDB } = require_database();
+		const db = getDB();
+		const rawName = url.split("?")[0].split("/").pop();
+		if (!rawName) return false;
+		const fileName = rawName.startsWith("[BlackPearl]") ? rawName : `[BlackPearl] ${rawName}`;
+		const dlPath = db.profile?.downloadPath || app.getPath("downloads");
+		return fs.existsSync(path.join(dlPath, fileName));
+	} catch (err) {
+		return false;
+	}
+});
 //#endregion

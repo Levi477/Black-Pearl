@@ -181,9 +181,25 @@ function setupAria2IPC(ipcMain, getAdBlocker) {
   });
 
 ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
-    const db = getDB();
+  const db = getDB();
 
-    const scrapeResult = await scrapeDirectLink(hostUrl);
+  const urls = Array.isArray(hostUrl) ? hostUrl : [hostUrl];
+
+  for (const currentUrl of urls) {
+    if (currentUrl.startsWith("magnet:")) {
+      try {
+        const gid = await aria2.call("addUri", [currentUrl], {
+          dir: db.profile.downloadPath || app.getPath("downloads"),
+        });
+        activeGameMap.set(gid, gameName);
+        event.sender.send("download-started", { gameName, fileName: "Torrent Download" });
+      } catch (e) {
+        console.error("Magnet error:", e);
+      }
+      continue; 
+    }
+
+    const scrapeResult = await scrapeDirectLink(currentUrl);
     if (scrapeResult) {
       let targetUrl = "";
       let customHeaders = [];
@@ -196,7 +212,6 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
       }
       
       console.log("[Scraper] Success! Sending to Aria2:", targetUrl);
-      
       const fileName = targetUrl.split("?")[0].split("/").pop() || "game_download";
       
       try {
@@ -213,14 +228,18 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
         
         activeGameMap.set(gid, gameName);
         event.sender.send("download-started", { gameName, fileName });
-        return; 
+        
+        // FIX 1: Changed 'return' to 'continue' so multi-part arrays don't stop after the first part!
+        continue; 
       } catch (err) {
         console.error("[ARIA2] Direct download failed, falling back to window.");
       }
     }
 
     console.log("[Scraper] Failed or unsupported. Opening Stealth Window.");
-    const dlSession = session.fromPartition("persist:stealth_downloads");
+    
+    const uniqueSessionId = `stealth_${Date.now()}_${Math.random()}`;
+    const dlSession = session.fromPartition(uniqueSessionId);
     const adBlocker = getAdBlocker();
     if (adBlocker) adBlocker.enableBlockingInSession(dlSession);
 
@@ -232,12 +251,20 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
       height: 750,
       show: true,
       title: "Black Pearl - Please solve captcha or click Download...",
-      webPreferences: { nodeIntegration: false, contextIsolation: true, session: dlSession },
+      webPreferences: { nodeIntegration: false, contextIsolation: true, session: dlSession,disableBlinkFeatures: 'AutomationControlled' },
     });
 
     downloadWin.webContents.setWindowOpenHandler(() => {
       return { action: "deny" }; 
     });
+
+    downloadWin.webContents.on('did-start-navigation', () => {
+    downloadWin.webContents.executeJavaScript(`
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] }); // Fake having browser plugins
+    `).catch(() => {});
+});
 
     downloadWin.webContents.on('did-finish-load', () => {
       const injectedUI = `
@@ -286,8 +313,10 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
       }
     });
 
-    downloadWin.loadURL(hostUrl);
-  });  
+    downloadWin.loadURL(currentUrl);
+  }
+});
+
 }
   
   function killAria2() {

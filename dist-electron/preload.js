@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld("api", {
 	pauseDownload: (gid) => ipcRenderer.invoke("pause-download", gid),
 	resumeDownload: (gid) => ipcRenderer.invoke("resume-download", gid),
 	cancelDownload: (gid) => ipcRenderer.invoke("cancel-download", gid),
+	checkPartExists: (url) => ipcRenderer.invoke("check-part-exists", url),
 	onDownloadUpdate: (callback) => {
 		ipcRenderer.removeAllListeners("download-update");
 		ipcRenderer.on("download-update", (event, data) => callback(data));
@@ -60,6 +61,7 @@ contextBridge.exposeInMainWorld("api", {
 	},
 	minimizeWindow: () => ipcRenderer.send("window-minimize"),
 	maximizeWindow: () => ipcRenderer.send("window-maximize"),
-	closeWindow: () => ipcRenderer.send("window-close")
+	closeWindow: () => ipcRenderer.send("window-close"),
+	openExternal: (url) => ipcRenderer.send("open-external", url)
 });
 //#endregion

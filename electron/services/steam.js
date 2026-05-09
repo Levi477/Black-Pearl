@@ -39,7 +39,7 @@ function setupSteamIPC(ipcMain) {
     try {
       const res = await axios.get(
         `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(
-          gameName.split("Free Download")[0].trim(),
+          gameName,
         )}&l=english&cc=US`,
       );
       if (!res.data.items?.length) return null;

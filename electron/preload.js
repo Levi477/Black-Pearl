@@ -45,6 +45,8 @@ getGameDetails: (url) => ipcRenderer.invoke("get-game-details", url),
   pauseDownload: (gid) => ipcRenderer.invoke("pause-download", gid),
   resumeDownload: (gid) => ipcRenderer.invoke("resume-download", gid),
   cancelDownload: (gid) => ipcRenderer.invoke("cancel-download", gid),
+  checkPartExists: (url) => ipcRenderer.invoke("check-part-exists", url),
+
 
   // Events
   onDownloadUpdate: (callback) => {
@@ -68,4 +70,9 @@ getGameDetails: (url) => ipcRenderer.invoke("get-game-details", url),
   minimizeWindow: () => ipcRenderer.send("window-minimize"),
   maximizeWindow: () => ipcRenderer.send("window-maximize"),
   closeWindow: () => ipcRenderer.send("window-close"),
+
+  // Open external links
+  openExternal: (url) => ipcRenderer.send("open-external", url),
+
+
 });

@@ -24,29 +24,52 @@ export default function DownloadsView({
           <div className="flex flex-col gap-4">
             {activeDownloads.map((d) => {
               const progress = d.total > 0 ? (d.completed / d.total) * 100 : 0;
+              
+              const isPreparing = d.completed === 0 && d.speed === 0;
+
               return (
                 <div
                   key={d.gid}
                   className="bg-black/60 backdrop-blur-3xl p-6 rounded-2xl relative overflow-hidden shadow-lg border border-white/10"
                 >
-                  <div
-                    className={`absolute top-0 left-0 h-1 ${currentTheme.color} transition-all duration-500`}
-                    style={{ width: `${progress}%` }}
-                  />
+                  {isPreparing ? (
+                    <div className="absolute top-0 left-0 h-1 w-full bg-blue-500/50 animate-pulse" />
+                  ) : (
+                    <div
+                      className={`absolute top-0 left-0 h-1 ${currentTheme.color} transition-all duration-500`}
+                      style={{ width: `${progress}%` }}
+                    />
+                  )}
+
                   <div className="flex justify-between items-center mb-4">
                     <h4 className="font-bold truncate pr-4 text-lg text-white">
                       {d.gameName || d.name}
                     </h4>
-                    <span className="font-mono text-sm font-bold text-gray-300 shrink-0">
-                      {formatBytes(d.speed)}/s
-                    </span>
+                    
+                    {isPreparing ? (
+                      <span className="font-mono text-xs font-black text-blue-400 animate-pulse shrink-0 uppercase tracking-widest">
+                        Preparing...
+                      </span>
+                    ) : (
+                      <span className="font-mono text-sm font-bold text-gray-300 shrink-0">
+                        {formatBytes(d.speed)}/s
+                      </span>
+                    )}
                   </div>
+
                   <div className="flex justify-between items-center text-sm text-gray-300 mb-4 font-mono">
-                    <span>
-                      {formatBytes(d.completed)} / {formatBytes(d.total)}
-                    </span>
-                    <span>{progress.toFixed(1)}%</span>
+                    {/* STATUS TEXT */}
+                    {isPreparing ? (
+                      <span className="text-gray-500 italic">Resolving links & allocating...</span>
+                    ) : (
+                      <span>
+                        {formatBytes(d.completed)} / {formatBytes(d.total)}
+                      </span>
+                    )}
+                    
+                    <span>{isPreparing ? "0.0%" : `${progress.toFixed(1)}%`}</span>
                   </div>
+
                   <div className="flex gap-2">
                     {d.status === "paused" ? (
                       <button
