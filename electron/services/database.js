@@ -15,6 +15,9 @@ function getDB() {
     wishlist: [],
     completedDownloads: [],
     library: [],
+    // Tracks how many parts each multi-part game requires.
+    // { [gameName]: number }
+    multipartRequired: {},
   };
 
   if (!fs.existsSync(dbPath)) {
@@ -24,7 +27,8 @@ function getDB() {
 
   try {
     const data = JSON.parse(fs.readFileSync(dbPath));
-    if (!data.library) data.library = [];
+    if (!data.library)           data.library = [];
+    if (!data.multipartRequired) data.multipartRequired = {};
     return data;
   } catch (e) {
     return defaults;
@@ -37,7 +41,7 @@ function saveDB(data) {
 
 function setupDatabaseIPC(ipcMain) {
   ipcMain.handle("get-db", () => getDB());
-  
+
   ipcMain.handle("update-profile", (e, profile) => {
     let db = getDB();
     db.profile = profile;
@@ -100,6 +104,17 @@ function setupDatabaseIPC(ipcMain) {
       saveDB(db);
     }
     return db.library;
+  });
+
+  // Register multi-part requirements so isDownloaded can be accurate.
+  // The stored value is the MAXIMUM of any previous registration so re-visiting
+  // the game page never accidentally lowers the count.
+  ipcMain.handle("register-multipart", (e, { gameName, totalParts }) => {
+    let db = getDB();
+    const existing = db.multipartRequired[gameName] || 0;
+    db.multipartRequired[gameName] = Math.max(existing, totalParts);
+    saveDB(db);
+    return db.multipartRequired;
   });
 }
 

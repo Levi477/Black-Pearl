@@ -7,14 +7,27 @@ contextBridge.exposeInMainWorld("api", {
   setExtension: (name) => ipcRenderer.invoke("set-extension", name),
   installExtension: (url) => ipcRenderer.invoke("install-extension", url),
 
-  // Browse
+  // Browse (batch — used for load-more pagination)
   getHomepage: () => ipcRenderer.invoke("get-homepage"),
   getCategory: (category, page) =>
     ipcRenderer.invoke("get-category", { category, page }),
   searchGames: (query, page) =>
     ipcRenderer.invoke("search-games", { query, page }),
   getSteamMedia: (gameName) => ipcRenderer.invoke("get-steam-media", gameName),
-getGameDetails: (url) => ipcRenderer.invoke("get-game-details", url),
+  getGameDetails: (url) => ipcRenderer.invoke("get-game-details", url),
+
+  // ── Streaming API ─────────────────────────────────────────────────────────
+  // Start a streaming scrape; results come back via onStreamItem / onStreamEnd
+  startStream: (params) => ipcRenderer.send("stream-request", params),
+
+  onStreamItem: (callback) => {
+    ipcRenderer.removeAllListeners("stream-item");
+    ipcRenderer.on("stream-item", (_event, game) => callback(game));
+  },
+  onStreamEnd: (callback) => {
+    ipcRenderer.removeAllListeners("stream-end");
+    ipcRenderer.on("stream-end", (_event, data) => callback(data));
+  },
 
   // Profile & DB
   selectDirectory: () => ipcRenderer.invoke("select-directory"),
@@ -23,13 +36,19 @@ getGameDetails: (url) => ipcRenderer.invoke("get-game-details", url),
   toggleWishlist: (game) => ipcRenderer.invoke("toggle-wishlist", game),
   clearCompleted: () => ipcRenderer.invoke("clear-completed"),
 
+  // Multi-part download registration
+  // Tells the main process how many parts this game requires so isDownloaded
+  // can be accurate.
+  registerMultipart: (gameName, totalParts) =>
+    ipcRenderer.invoke("register-multipart", { gameName, totalParts }),
+
   // Library
   addToLibrary: (game) => ipcRenderer.invoke("add-to-library", game),
   removeFromLibrary: (gameName) =>
     ipcRenderer.invoke("remove-from-library", gameName),
   setGameExe: (gameName, exePath) =>
     ipcRenderer.invoke("set-game-exe", { gameName, exePath }),
-  setLaunchParams: (gameName, params) => 
+  setLaunchParams: (gameName, params) =>
     ipcRenderer.invoke("set-launch-params", { gameName, params }),
 
   // Game Launcher
@@ -47,23 +66,22 @@ getGameDetails: (url) => ipcRenderer.invoke("get-game-details", url),
   cancelDownload: (gid) => ipcRenderer.invoke("cancel-download", gid),
   checkPartExists: (url) => ipcRenderer.invoke("check-part-exists", url),
 
-
   // Events
   onDownloadUpdate: (callback) => {
     ipcRenderer.removeAllListeners("download-update");
-    ipcRenderer.on("download-update", (event, data) => callback(data));
+    ipcRenderer.on("download-update", (_event, data) => callback(data));
   },
   onDownloadStarted: (callback) => {
     ipcRenderer.removeAllListeners("download-started");
-    ipcRenderer.on("download-started", (event, data) => callback(data));
+    ipcRenderer.on("download-started", (_event, data) => callback(data));
   },
   onGameStarted: (callback) => {
     ipcRenderer.removeAllListeners("game-started");
-    ipcRenderer.on("game-started", (event, gameName) => callback(gameName));
+    ipcRenderer.on("game-started", (_event, gameName) => callback(gameName));
   },
   onGameExited: (callback) => {
     ipcRenderer.removeAllListeners("game-exited");
-    ipcRenderer.on("game-exited", (event, gameName) => callback(gameName));
+    ipcRenderer.on("game-exited", (_event, gameName) => callback(gameName));
   },
 
   // Window Controls
@@ -73,6 +91,4 @@ getGameDetails: (url) => ipcRenderer.invoke("get-game-details", url),
 
   // Open external links
   openExternal: (url) => ipcRenderer.send("open-external", url),
-
-
 });

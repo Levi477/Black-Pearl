@@ -15,11 +15,24 @@ contextBridge.exposeInMainWorld("api", {
 	}),
 	getSteamMedia: (gameName) => ipcRenderer.invoke("get-steam-media", gameName),
 	getGameDetails: (url) => ipcRenderer.invoke("get-game-details", url),
+	startStream: (params) => ipcRenderer.send("stream-request", params),
+	onStreamItem: (callback) => {
+		ipcRenderer.removeAllListeners("stream-item");
+		ipcRenderer.on("stream-item", (_event, game) => callback(game));
+	},
+	onStreamEnd: (callback) => {
+		ipcRenderer.removeAllListeners("stream-end");
+		ipcRenderer.on("stream-end", (_event, data) => callback(data));
+	},
 	selectDirectory: () => ipcRenderer.invoke("select-directory"),
 	getDB: () => ipcRenderer.invoke("get-db"),
 	updateProfile: (profile) => ipcRenderer.invoke("update-profile", profile),
 	toggleWishlist: (game) => ipcRenderer.invoke("toggle-wishlist", game),
 	clearCompleted: () => ipcRenderer.invoke("clear-completed"),
+	registerMultipart: (gameName, totalParts) => ipcRenderer.invoke("register-multipart", {
+		gameName,
+		totalParts
+	}),
 	addToLibrary: (game) => ipcRenderer.invoke("add-to-library", game),
 	removeFromLibrary: (gameName) => ipcRenderer.invoke("remove-from-library", gameName),
 	setGameExe: (gameName, exePath) => ipcRenderer.invoke("set-game-exe", {
@@ -45,19 +58,19 @@ contextBridge.exposeInMainWorld("api", {
 	checkPartExists: (url) => ipcRenderer.invoke("check-part-exists", url),
 	onDownloadUpdate: (callback) => {
 		ipcRenderer.removeAllListeners("download-update");
-		ipcRenderer.on("download-update", (event, data) => callback(data));
+		ipcRenderer.on("download-update", (_event, data) => callback(data));
 	},
 	onDownloadStarted: (callback) => {
 		ipcRenderer.removeAllListeners("download-started");
-		ipcRenderer.on("download-started", (event, data) => callback(data));
+		ipcRenderer.on("download-started", (_event, data) => callback(data));
 	},
 	onGameStarted: (callback) => {
 		ipcRenderer.removeAllListeners("game-started");
-		ipcRenderer.on("game-started", (event, gameName) => callback(gameName));
+		ipcRenderer.on("game-started", (_event, gameName) => callback(gameName));
 	},
 	onGameExited: (callback) => {
 		ipcRenderer.removeAllListeners("game-exited");
-		ipcRenderer.on("game-exited", (event, gameName) => callback(gameName));
+		ipcRenderer.on("game-exited", (_event, gameName) => callback(gameName));
 	},
 	minimizeWindow: () => ipcRenderer.send("window-minimize"),
 	maximizeWindow: () => ipcRenderer.send("window-maximize"),

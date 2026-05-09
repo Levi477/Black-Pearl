@@ -22310,7 +22310,8 @@ var require_database = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			},
 			wishlist: [],
 			completedDownloads: [],
-			library: []
+			library: [],
+			multipartRequired: {}
 		};
 		if (!fs$4.existsSync(dbPath)) {
 			fs$4.writeFileSync(dbPath, JSON.stringify(defaults));
@@ -22319,6 +22320,7 @@ var require_database = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		try {
 			const data = JSON.parse(fs$4.readFileSync(dbPath));
 			if (!data.library) data.library = [];
+			if (!data.multipartRequired) data.multipartRequired = {};
 			return data;
 		} catch (e) {
 			return defaults;
@@ -22385,6 +22387,13 @@ var require_database = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				saveDB(db);
 			}
 			return db.library;
+		});
+		ipcMain.handle("register-multipart", (e, { gameName, totalParts }) => {
+			let db = getDB();
+			const existing = db.multipartRequired[gameName] || 0;
+			db.multipartRequired[gameName] = Math.max(existing, totalParts);
+			saveDB(db);
+			return db.multipartRequired;
 		});
 	}
 	module.exports = {
@@ -22509,6 +22518,76 @@ var require_extensions = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			const d = activeExt ? await activeExt.search_games(query, page) : [];
 			pageCache.set(k, d);
 			return d;
+		});
+		ipcMain.on("stream-request", async (event, { type, params = {} }) => {
+			if (!activeExt) {
+				if (!event.sender.isDestroyed()) event.sender.send("stream-end", {
+					type,
+					params,
+					total: 0,
+					hasMore: false
+				});
+				return;
+			}
+			const supportsStreaming = !!activeExt.capabilities?.hasStreaming;
+			const sendItem = (game) => {
+				if (!event.sender.isDestroyed()) event.sender.send("stream-item", game);
+			};
+			let cacheKey;
+			if (type === "homepage") cacheKey = getCacheKey("home", "m", 1);
+			else if (type === "category") cacheKey = getCacheKey("cat", params.category, params.page || 1);
+			else if (type === "search") cacheKey = getCacheKey("src", params.query, params.page || 1);
+			if (cacheKey && pageCache.has(cacheKey)) {
+				const cached = pageCache.get(cacheKey);
+				for (const game of cached) sendItem(game);
+				if (!event.sender.isDestroyed()) event.sender.send("stream-end", {
+					type,
+					params,
+					total: cached.length,
+					fromCache: true,
+					hasMore: type !== "homepage" && cached.length > 0 && (type === "category" ? !!activeExt.capabilities?.hasCategoryPagination : !!activeExt.capabilities?.hasSearchPagination)
+				});
+				return;
+			}
+			const accumulated = [];
+			const onGame = (game) => {
+				accumulated.push(game);
+				sendItem(game);
+			};
+			try {
+				if (type === "homepage") if (supportsStreaming) await activeExt.get_homepage_games(onGame);
+				else {
+					const res = await activeExt.get_homepage_games();
+					for (const g of res || []) onGame(g);
+				}
+				else if (type === "category") if (supportsStreaming) await activeExt.get_games_by_category(params.category, params.page || 1, onGame);
+				else {
+					const res = await activeExt.get_games_by_category(params.category, params.page || 1);
+					for (const g of res || []) onGame(g);
+				}
+				else if (type === "search") if (supportsStreaming) await activeExt.search_games(params.query, params.page || 1, onGame);
+				else {
+					const res = await activeExt.search_games(params.query, params.page || 1);
+					for (const g of res || []) onGame(g);
+				}
+				if (cacheKey && accumulated.length > 0) pageCache.set(cacheKey, accumulated);
+				if (!event.sender.isDestroyed()) event.sender.send("stream-end", {
+					type,
+					params,
+					total: accumulated.length,
+					fromCache: false,
+					hasMore: type !== "homepage" && accumulated.length > 0 && (type === "category" ? !!activeExt.capabilities?.hasCategoryPagination : !!activeExt.capabilities?.hasSearchPagination)
+				});
+			} catch (err) {
+				console.error("[Stream] Error during scrape:", err.message);
+				if (!event.sender.isDestroyed()) event.sender.send("stream-end", {
+					type,
+					params,
+					total: accumulated.length,
+					error: err.message,
+					hasMore: false
+				});
+			}
 		});
 		ipcMain.handle("install-extension", async (e, url) => {
 			const userExtPath = path$3.join(app$3.getPath("userData"), "extensions");
