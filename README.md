@@ -17,7 +17,7 @@
 
 ---
 # Download Alpha Version Release [Here](https://github.com/Levi477/Black-Pearl/releases)
-
+# Follow [This](https://github.com/Levi477/Black-Pearl-Scrappers) Repo for adding different sources to Black Pearl
 
 ## ✨ Features
 
@@ -39,8 +39,7 @@ Black Pearl isn't just a launcher; it's a fully integrated ecosystem designed fo
     <img src="https://i.postimg.cc/wM6W5hrd/Screenshot-2026-05-10-at-6-12-40-PM.png" alt="Game Detail View Placeholder" width="48%">
     <img src="https://i.postimg.cc/x8t66Xr8/Screenshot-2026-05-10-at-6-13-44-PM.png" alt="Game Detail View Placeholder" width="48%">
     <img src="https://i.postimg.cc/d3455hM1/Screenshot-2026-05-10-at-6-15-19-PM.png" alt="Game Detail View Placeholder" width="48%">
-      <img src="https://i.postimg.cc/ZnVwwWkb/Screenshot-2026-05-10-at-6-27-56-PM.png
-" alt="Game Detail View Placeholder" width="48%">
+    <img src="https://i.postimg.cc/ZnVwwWkb/Screenshot-2026-05-10-at-6-27-56-PM.png" alt="Game Detail View Placeholder" width="48%">
 
 </div>
 <br>
