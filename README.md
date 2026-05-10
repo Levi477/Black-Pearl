@@ -9,7 +9,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](#)
 [![Framer Motion](https://img.shields.io/badge/Framer_Motion-black?style=for-the-badge&logo=framer&logoColor=blue)](#)
 
-![Hero Image Placeholder](https://i.postimg.cc/Gm9nS6wj/Screenshot-2026-05-07-at-6-10-36-PM.png)
+![Hero Image Placeholder](https://i.postimg.cc/RhF7VG8m/Screenshot-2026-05-10-at-6-33-57-PM.png)
 
 *Your ultimate hub for discovering, downloading, and launching your favorite titles.*
 
@@ -36,6 +36,12 @@ Black Pearl isn't just a launcher; it's a fully integrated ecosystem designed fo
 <div align="center">
   <img src="https://i.postimg.cc/9QSH31cW/Screenshot-2026-05-07-at-6-13-46-PM.png" alt="Library View Placeholder" width="48%">
   <img src="https://i.postimg.cc/rwb26gqM/Screenshot-2026-05-07-at-6-13-59-PM.png" alt="Game Detail View Placeholder" width="48%">
+    <img src="https://i.postimg.cc/wM6W5hrd/Screenshot-2026-05-10-at-6-12-40-PM.png" alt="Game Detail View Placeholder" width="48%">
+    <img src="https://i.postimg.cc/x8t66Xr8/Screenshot-2026-05-10-at-6-13-44-PM.png" alt="Game Detail View Placeholder" width="48%">
+    <img src="https://i.postimg.cc/d3455hM1/Screenshot-2026-05-10-at-6-15-19-PM.png" alt="Game Detail View Placeholder" width="48%">
+      <img src="https://i.postimg.cc/ZnVwwWkb/Screenshot-2026-05-10-at-6-27-56-PM.png
+" alt="Game Detail View Placeholder" width="48%">
+
 </div>
 <br>
 <div align="center">
