@@ -1,5 +1,13 @@
-// Handles the display and management of active and completed Aria2 downloads.
-import { Download, CheckCircle, Play, Pause, X } from "lucide-react";
+import { useState } from "react";
+import {
+  Download,
+  CheckCircle,
+  Play,
+  Pause,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { formatBytes } from "../../utils/helpers";
 
 export default function DownloadsView({
@@ -8,6 +16,17 @@ export default function DownloadsView({
   setCompletedDownloads,
   currentTheme,
 }) {
+  const [expandedGids, setExpandedGids] = useState(new Set());
+
+  const toggleExpand = (gid) => {
+    setExpandedGids((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(gid)) newSet.delete(gid);
+      else newSet.add(gid);
+      return newSet;
+    });
+  };
+
   return (
     <div className="p-8 w-full max-w-5xl mx-auto flex flex-col gap-10">
       <div>
@@ -24,13 +43,14 @@ export default function DownloadsView({
           <div className="flex flex-col gap-4">
             {activeDownloads.map((d) => {
               const progress = d.total > 0 ? (d.completed / d.total) * 100 : 0;
-              
               const isPreparing = d.completed === 0 && d.speed === 0;
+              const isExpanded = expandedGids.has(d.gid);
+              const hasFiles = d.files && d.files.length > 1;
 
               return (
                 <div
                   key={d.gid}
-                  className="bg-black/60 backdrop-blur-3xl p-6 rounded-2xl relative overflow-hidden shadow-lg border border-white/10"
+                  className="bg-black/60 backdrop-blur-3xl p-6 rounded-2xl relative overflow-hidden shadow-lg border border-white/10 flex flex-col"
                 >
                   {isPreparing ? (
                     <div className="absolute top-0 left-0 h-1 w-full bg-blue-500/50 animate-pulse" />
@@ -45,7 +65,7 @@ export default function DownloadsView({
                     <h4 className="font-bold truncate pr-4 text-lg text-white">
                       {d.gameName || d.name}
                     </h4>
-                    
+
                     {isPreparing ? (
                       <span className="font-mono text-xs font-black text-blue-400 animate-pulse shrink-0 uppercase tracking-widest">
                         Preparing...
@@ -58,16 +78,18 @@ export default function DownloadsView({
                   </div>
 
                   <div className="flex justify-between items-center text-sm text-gray-300 mb-4 font-mono">
-                    {/* STATUS TEXT */}
                     {isPreparing ? (
-                      <span className="text-gray-500 italic">Resolving links & allocating...</span>
+                      <span className="text-gray-500 italic">
+                        Resolving links & allocating metadata...
+                      </span>
                     ) : (
                       <span>
                         {formatBytes(d.completed)} / {formatBytes(d.total)}
                       </span>
                     )}
-                    
-                    <span>{isPreparing ? "0.0%" : `${progress.toFixed(1)}%`}</span>
+                    <span>
+                      {isPreparing ? "0.0%" : `${progress.toFixed(1)}%`}
+                    </span>
                   </div>
 
                   <div className="flex gap-2">
@@ -93,6 +115,60 @@ export default function DownloadsView({
                       <X size={18} className="text-red-400" />
                     </button>
                   </div>
+
+                  {/* SUB-FILES RENDERING (Torrent Tree) */}
+                  {hasFiles && (
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <button
+                        onClick={() => toggleExpand(d.gid)}
+                        className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+                      >
+                        {isExpanded ? (
+                          <ChevronUp size={16} />
+                        ) : (
+                          <ChevronDown size={16} />
+                        )}
+                        {isExpanded
+                          ? "Hide Files"
+                          : `View Tracked Files (${d.files.length})`}
+                      </button>
+
+                      {isExpanded && (
+                        <div className="mt-3 max-h-48 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                          {d.files.map((file, idx) => {
+                            const fileProgress =
+                              file.total > 0
+                                ? (file.completed / file.total) * 100
+                                : 0;
+                            return (
+                              <div
+                                key={idx}
+                                className="bg-white/5 rounded-lg p-2 text-xs"
+                              >
+                                <div className="flex justify-between text-gray-300 mb-1">
+                                  <span
+                                    className="truncate pr-2"
+                                    title={file.path}
+                                  >
+                                    {file.path || "Resolving..."}
+                                  </span>
+                                  <span className="shrink-0">
+                                    {fileProgress.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-black/50 h-1 rounded-full overflow-hidden">
+                                  <div
+                                    className={`${currentTheme.color} h-full opacity-70`}
+                                    style={{ width: `${fileProgress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

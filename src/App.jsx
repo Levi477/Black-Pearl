@@ -14,6 +14,8 @@ import LibraryView from "./components/library/LibraryView.jsx";
 import ProfileSettings from "./components/profile/ProfileSettings.jsx";
 
 export default function App() {
+  const [appReady, setAppReady] = useState(false); // Added blocking state
+
   const [currentView, setCurrentView] = useState("browse");
   const [themes, setThemes] = useState(DEFAULT_THEMES);
   const [currentTheme, setCurrentTheme] = useState(DEFAULT_THEMES[0]);
@@ -74,11 +76,13 @@ export default function App() {
         else setLoading(false);
       });
 
+      // Fetch DB and unlock app UI once profile is loaded
       window.api.getDB().then((db) => {
         setProfile(db.profile);
         setWishlist(db.wishlist);
         setCompletedDownloads(db.completedDownloads);
         setLibrary(db.library || []);
+        setAppReady(true);
       });
 
       window.api.onDownloadUpdate((data) => {
@@ -93,7 +97,6 @@ export default function App() {
         setTimeout(() => setToast(null), 5000);
       });
 
-      // Track game starts from the main process
       window.api.onGameStarted((gameName) => {
         setRunningGames((prev) => {
           const next = new Set(prev);
@@ -102,7 +105,6 @@ export default function App() {
         });
       });
 
-      // Track game exits from the main process
       window.api.onGameExited((gameName) => {
         setRunningGames((prev) => {
           const next = new Set(prev);
@@ -110,6 +112,8 @@ export default function App() {
           return next;
         });
       });
+    } else {
+      setAppReady(true); // Fallback if API isn't available
     }
   }, []);
 
@@ -122,6 +126,11 @@ export default function App() {
     const updated = await window.api.removeFromLibrary(gameName);
     setLibrary(updated);
   };
+
+  // Block rendering until database loads the 'liteMode' property
+  if (!appReady) {
+    return <div className="h-screen w-screen bg-[#030303]" />;
+  }
 
   return (
     <MotionConfig transition={profile.liteMode ? { duration: 0 } : undefined}>

@@ -2,13 +2,13 @@ const { app, BrowserWindow, session } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
-const net = require("net"); 
+const net = require("net");
 const Aria2 = require("aria2").default || require("aria2");
 const { getDB, saveDB } = require("./database");
 const { scrapeDirectLink } = require("./scrapers/manager");
 
 let aria2Process;
-let aria2; 
+let aria2;
 const activeGameMap = new Map();
 
 // --- DYNAMIC PORT SCANNER ---
@@ -19,7 +19,9 @@ function findFreePort(startPort, maxPort = 6900) {
     server.on("error", (err) => {
       if (err.code === "EADDRINUSE") {
         if (startPort < maxPort) {
-          console.log(`[ARIA2] Port ${startPort} is busy, trying ${startPort + 1}...`);
+          console.log(
+            `[ARIA2] Port ${startPort} is busy, trying ${startPort + 1}...`,
+          );
           resolve(findFreePort(startPort + 1, maxPort));
         } else {
           reject(new Error("No free ports available for Aria2"));
@@ -122,8 +124,23 @@ function startPolling(getMainWindow) {
         let updated = false;
 
         for (const c of completed) {
+          // BUG FIX: Ignore metadata file completions from torrents!
+          // If followedBy is present, this gid was just a .torrent payload which spawned the real download
+          if (c.followedBy && c.followedBy.length > 0) {
+            const newGid = c.followedBy[0];
+            const gameName = activeGameMap.get(c.gid);
+            if (gameName) activeGameMap.set(newGid, gameName);
+
+            try {
+              await aria2.call("removeDownloadResult", c.gid);
+            } catch (e) {}
+            continue; // Skip adding to completedDownloads
+          }
+
           const fileName =
-            c.files[0]?.path?.split(/[/\\]/).pop() || "Unknown File";
+            c.bittorrent?.info?.name ||
+            c.files[0]?.path?.split(/[/\\]/).pop() ||
+            "Unknown File";
           const gameName = activeGameMap.get(c.gid) || fileName;
 
           if (!db.completedDownloads.find((x) => x.gid === c.gid)) {
@@ -146,24 +163,49 @@ function startPolling(getMainWindow) {
 
       mainWindow.webContents.send(
         "download-update",
-        [...active, ...waiting].map((d) => ({
-          gid: d.gid,
-          gameName:
-            activeGameMap.get(d.gid) || d.files[0]?.path?.split(/[/\\]/).pop(),
-          name: d.files[0]?.path?.split(/[/\\]/).pop() || "Resolving...",
-          total: Number(d.totalLength || 0),
-          completed: Number(d.completedLength || 0),
-          speed: Number(d.downloadSpeed || 0),
-          status: d.status,
-        })),
+        [...active, ...waiting].map((d) => {
+          let name = d.files[0]?.path?.split(/[/\\]/).pop() || "Resolving...";
+          if (d.bittorrent && d.bittorrent.info && d.bittorrent.info.name) {
+            name = d.bittorrent.info.name;
+          }
+
+          // Parse inner files for UI tracking
+          const files = d.files
+            ? d.files
+                .filter((f) => f.path && f.selected === "true")
+                .map((f) => ({
+                  path: f.path.split(/[/\\]/).pop(),
+                  completed: Number(f.completedLength || 0),
+                  total: Number(f.length || 0),
+                }))
+            : [];
+
+          return {
+            gid: d.gid,
+            gameName: activeGameMap.get(d.gid) || name,
+            name: name,
+            total: Number(d.totalLength || 0),
+            completed: Number(d.completedLength || 0),
+            speed: Number(d.downloadSpeed || 0),
+            status: d.status,
+            files: files,
+            isTorrent: !!d.bittorrent,
+          };
+        }),
       );
     } catch (e) {}
   }, 1000);
 }
 
 function setupAria2IPC(ipcMain, getAdBlocker) {
-  ipcMain.handle("pause-download", async (e, gid) => await aria2.call("pause", gid));
-  ipcMain.handle("resume-download", async (e, gid) => await aria2.call("unpause", gid));
+  ipcMain.handle(
+    "pause-download",
+    async (e, gid) => await aria2.call("pause", gid),
+  );
+  ipcMain.handle(
+    "resume-download",
+    async (e, gid) => await aria2.call("unpause", gid),
+  );
   ipcMain.handle("cancel-download", async (e, gid) => {
     try {
       const status = await aria2.call("tellStatus", gid);
@@ -180,23 +222,26 @@ function setupAria2IPC(ipcMain, getAdBlocker) {
     }
   });
 
-ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
-  const db = getDB();
+  ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
+    const db = getDB();
 
-  const urls = Array.isArray(hostUrl) ? hostUrl : [hostUrl];
+    // REMOVED MULTIPART: Ensure it's treated strictly as a single string link
+    const currentUrl = Array.isArray(hostUrl) ? hostUrl[0] : hostUrl;
 
-  for (const currentUrl of urls) {
     if (currentUrl.startsWith("magnet:")) {
       try {
         const gid = await aria2.call("addUri", [currentUrl], {
           dir: db.profile.downloadPath || app.getPath("downloads"),
         });
         activeGameMap.set(gid, gameName);
-        event.sender.send("download-started", { gameName, fileName: "Torrent Download" });
+        event.sender.send("download-started", {
+          gameName,
+          fileName: "Torrent Download",
+        });
       } catch (e) {
         console.error("Magnet error:", e);
       }
-      continue; 
+      return;
     }
 
     const scrapeResult = await scrapeDirectLink(currentUrl);
@@ -210,40 +255,43 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
         targetUrl = scrapeResult.url;
         customHeaders = scrapeResult.headers || [];
       }
-      
+
       console.log("[Scraper] Success! Sending to Aria2:", targetUrl);
-      const fileName = targetUrl.split("?")[0].split("/").pop() || "game_download";
-      
+      const fileName =
+        targetUrl.split("?")[0].split("/").pop() || "game_download";
+
       try {
         const ariaOptions = {
           dir: db.profile.downloadPath || app.getPath("downloads"),
           out: `[BlackPearl] ${fileName}`,
         };
-        
+
         if (customHeaders.length > 0) {
           ariaOptions.header = customHeaders;
         }
 
         const gid = await aria2.call("addUri", [targetUrl], ariaOptions);
-        
+
         activeGameMap.set(gid, gameName);
         event.sender.send("download-started", { gameName, fileName });
-        
-        // FIX 1: Changed 'return' to 'continue' so multi-part arrays don't stop after the first part!
-        continue; 
+
+        return;
       } catch (err) {
-        console.error("[ARIA2] Direct download failed, falling back to window.");
+        console.error(
+          "[ARIA2] Direct download failed, falling back to window.",
+        );
       }
     }
 
     console.log("[Scraper] Failed or unsupported. Opening Stealth Window.");
-    
+
     const uniqueSessionId = `stealth_${Date.now()}_${Math.random()}`;
     const dlSession = session.fromPartition(uniqueSessionId);
     const adBlocker = getAdBlocker();
     if (adBlocker) adBlocker.enableBlockingInSession(dlSession);
 
-    const realUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    const realUA =
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     dlSession.setUserAgent(realUA);
 
     let downloadWin = new BrowserWindow({
@@ -251,22 +299,31 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
       height: 750,
       show: true,
       title: "Black Pearl - Please solve captcha or click Download...",
-      webPreferences: { nodeIntegration: false, contextIsolation: true, session: dlSession,disableBlinkFeatures: 'AutomationControlled' },
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        session: dlSession,
+        disableBlinkFeatures: "AutomationControlled",
+      },
     });
 
     downloadWin.webContents.setWindowOpenHandler(() => {
-      return { action: "deny" }; 
+      return { action: "deny" };
     });
 
-    downloadWin.webContents.on('did-start-navigation', () => {
-    downloadWin.webContents.executeJavaScript(`
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
-        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] }); // Fake having browser plugins
-    `).catch(() => {});
-});
+    downloadWin.webContents.on("did-start-navigation", () => {
+      downloadWin.webContents
+        .executeJavaScript(
+          `
+          Object.defineProperty(navigator, 'webdriver', { get: () => false });
+          Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+          Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] }); // Fake having browser plugins
+      `,
+        )
+        .catch(() => {});
+    });
 
-    downloadWin.webContents.on('did-finish-load', () => {
+    downloadWin.webContents.on("did-finish-load", () => {
       const injectedUI = `
         Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
         if (!document.getElementById('bp-back-btn')) {
@@ -278,12 +335,15 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
           document.body.appendChild(btn);
         }
       `;
-      downloadWin.webContents.executeJavaScript(injectedUI).catch(()=>{});
+      downloadWin.webContents.executeJavaScript(injectedUI).catch(() => {});
     });
 
     let hasIntercepted = false;
     dlSession.on("will-download", async (e, item) => {
-      if (hasIntercepted) { e.preventDefault(); return; }
+      if (hasIntercepted) {
+        e.preventDefault();
+        return;
+      }
       hasIntercepted = true;
       e.preventDefault();
       if (downloadWin.isDestroyed()) return;
@@ -294,7 +354,7 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
       try {
         const cookies = await dlSession.cookies.get({});
         const exactReferer = downloadWin.webContents.getURL();
-        
+
         const gid = await aria2.call("addUri", [directUrlItem], {
           header: [
             `Cookie: ${cookies.map((c) => `${c.name}=${c.value}`).join("; ")}`,
@@ -305,7 +365,10 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
           out: `[BlackPearl] ${downloadedFileName}`,
         });
         activeGameMap.set(gid, gameName);
-        event.sender.send("download-started", { gameName, fileName: downloadedFileName });
+        event.sender.send("download-started", {
+          gameName,
+          fileName: downloadedFileName,
+        });
       } catch (err) {
         console.error(err);
       } finally {
@@ -314,13 +377,17 @@ ipcMain.on("start-smart-download", async (event, hostUrl, gameName) => {
     });
 
     downloadWin.loadURL(currentUrl);
-  }
-});
-
+  });
 }
-  
-  function killAria2() {
+
+function killAria2() {
   if (aria2Process) aria2Process.kill();
 }
 
-module.exports = { startAria2, connectAria2, startPolling, setupAria2IPC, killAria2 };
+module.exports = {
+  startAria2,
+  connectAria2,
+  startPolling,
+  setupAria2IPC,
+  killAria2,
+};
