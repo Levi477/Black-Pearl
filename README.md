@@ -16,7 +16,7 @@
 </div>
 
 ---
-# Download Alpha Version Release [Here](https://github.com/Levi477/Black-Pearl/releases)
+# Download Latest Release [Here](https://github.com/Levi477/Black-Pearl/releases)
 # Follow [This](https://github.com/Levi477/Black-Pearl-Scrappers) Repo for adding different sources to Black Pearl
 
 ## ✨ Features
@@ -28,6 +28,18 @@ Black Pearl isn't just a launcher; it's a fully integrated ecosystem designed fo
 * **🎮 Smart Game Launcher:** Automatically detects when a game launches and closes (even if it uses an intermediate launcher wrapper). Supports custom launch parameters.
 * **💨 Lite Mode for Low-End PCs:** Instantly toggle off all heavy blur effects, CSS shadows, and Framer Motion spring animations for maximum CPU/RAM savings.
 * **🌐 Steam Metadata Integration:** Automatically fetches high-quality media galleries, descriptions, release dates, and system requirements from the Steam API.
+
+---
+
+## 🗺️ Future Roadmap
+
+We are constantly working to make Black Pearl the ultimate gaming hub. Here are the major features planned for upcoming releases:
+
+* **☁️ Cloud Save Sync:** Automatic detection of game save folders with background syncing to Google Drive so you never lose your progress, even across different PCs.
+* **🏆 Achievements Tracking:** Native overlay and tracking for achievements across supported games, bringing a premium console-like experience to your library.
+* **🔗 Debrid Service Support:** Deep integration with premium Debrid services (like Real-Debrid, AllDebrid, etc.) to automatically unrestrict file host links and maximize download speeds without captchas.
+* **🎮 Steam Deck / Linux Support:** Full compatibility with SteamOS, including automated Proton prefix generation to seamlessly download, install, and run Windows `.exe` games natively on Linux.
+* **⏱️ Playtime Tracking:** Detailed statistics on how many hours you have spent in each game right on your library card.
 
 ---
 
